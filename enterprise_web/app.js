@@ -47,7 +47,7 @@ async function createSource(){try{const data={name:$('sourceName').value,kind:$(
 async function refreshAudit(){try{const [r,a,u]=await Promise.all([api('/runs'),api('/audit'),api('/users')]);$('runHistory').innerHTML=r.items.map(x=>`<article class="asset"><h3>Run #${x.id} · ${E(x.brand||'客户')}</h3><p>参考${x.spent_wan}万 · 选中${x.item_count}项 · ${E(x.created_at)}</p><button class="tiny-btn" data-open-run="${x.id}">查看执行记录</button></article>`).join('')||'<p class="micro">尚无任务执行历史</p>';$('auditList').innerHTML=a.items.map(x=>`<article class="asset"><h3>${E(x.action)}</h3><p>${E(x.detail)} · ${E(x.created_at)}</p></article>`).join('')||'<p class="micro">暂无审计记录</p>';$('adminPanel').classList.toggle('hidden',state.user.role!=='admin');$('userList').innerHTML=u.items.map(x=>`<article class="asset"><h3>${E(x.display)} · ${E(x.username)}</h3><p>${E(x.role)} · ${E(x.created_at)}</p></article>`).join('')}catch(e){toast(e.message)}}
 async function createUser(){try{const r=await api('/users','POST',{username:$('newUser').value.trim(),display:$('newDisplay').value.trim(),role:$('newRole').value});$('newUserCred').classList.remove('hidden');$('newUserCred').textContent=`新账号：${r.username}；一次性初始密码：${r.initial_password}。请安全转交员工，立即更改。此处不再重复显示。`;await refreshAudit();toast('已创建员工账号')}catch(e){toast(e.message)}}
 async function refreshStatus(){try{const s=await api('/status');for(let field of ['agents','skills','datasets','runs'])$('stat'+field[0].toUpperCase()+field.slice(1)).textContent=s.counts[field]}catch(e){}}
-async function bootstrap(){try{const me=await api('/me');state.csrf=me.csrf;state.user=me.user;$('loginCover').classList.add('hidden');$('userLabel').textContent=me.user.display;$('roleLabel').textContent=me.user.role;$('avatar').textContent=me.user.display.slice(0,1);await Promise.all([refreshAssets(),refreshStatus()]);setBudget(200);try{const cfg=await api('/status');state.publicSynthetic=cfg.deployment_mode==='cloud_synthetic';enforceIndustry();$('clientModelStatus').textContent=cfg.tool_model_configured?('服务端已配置 '+cfg.tool_model_provider+' 受限 Tool Calling；仍须真实调用才能判定联调成功'):'尚未配置 '+cfg.tool_model_provider+' 受限模型密钥或模型 ID；确定性方案功能仍可用';}catch(e){}}catch(e){$('loginCover').classList.remove('hidden')}}
+async function bootstrap(){try{const me=await api('/me');state.csrf=me.csrf;state.user=me.user;$('loginCover').classList.add('hidden');$('userLabel').textContent=me.user.display;$('roleLabel').textContent=me.user.role;$('avatar').textContent=me.user.display.slice(0,1);await Promise.all([refreshAssets(),refreshStatus(),loadClientDatasetChoices()]);setBudget(200);try{const cfg=await api('/status');state.publicSynthetic=cfg.deployment_mode==='cloud_synthetic';enforceIndustry();$('clientModelStatus').textContent=cfg.tool_model_configured?('服务端已配置 '+cfg.tool_model_provider+' 受限 Tool Calling；仍须真实调用才能判定联调成功'):'尚未配置 '+cfg.tool_model_provider+' 受限模型密钥或模型 ID；确定性方案功能仍可用';}catch(e){}}catch(e){$('loginCover').classList.remove('hidden')}}
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();try{const r=await api('/auth/login','POST',{username:$('loginUser').value.trim(),password:$('loginPassword').value});state.csrf=r.csrf;await bootstrap();toast('欢迎进入企业 Agent 工作台')}catch(err){$('loginError').textContent=err.message}});
 async function refreshProposalReview(){
  if(!state.lastRun?.run_id)return;
@@ -211,6 +211,9 @@ async function generateClientProposal(){
    start_date:$('clientDate').value,weeks:Number($('clientWeeks').value),
    landmark:$('clientPlace').value,medium:$('clientMedium').value,
    coverage_only:$('clientCoverage').checked,
+   inventory_dataset_id:Number($('clientInventorySource').value)||null,
+   coverage_dataset_id:Number($('clientCoverageSource').value)||null,
+   pricing_dataset_id:Number($('clientPricingSource').value)||null,
    business_goal:$('clientBusinessGoal').value.trim(),
    campaign_goal:$('clientCampaignGoal').value,
    target_audience:$('clientAudience').value.trim(),
@@ -232,8 +235,8 @@ async function generateClientProposal(){
   renderClientProposal(r);
   renderEfficiency();
   refreshStatus();
-  await loadClientPreReview(r.run_id);
-  toast('客户方案已生成：可查看质量和媒体依据');
+  await Promise.all([loadClientPreReview(r.run_id),loadClientWorkshopReadiness(r.run_id)]);
+  toast('客户方案已生成：可查看质量、数据来源及待审核门禁');
  }catch(err){$('clientRunState').textContent='执行未成功';toast(err.message)}
  finally{b.disabled=false;b.innerHTML='✦ 开始分析客户需求，给出最优候选 <span>→</span>'}
 }
@@ -272,6 +275,40 @@ async function analyzeClientChange(){
  }catch(e){toast(e.message)}finally{b.disabled=false}
 }
 // Customer-facing evidence review, grounded in the same authenticated frozen Run.
+// Workshop data selection: same authenticated snapshot that the Agent will read.
+// Only safe metadata comes back; no token, URL, inventory rows or client details.
+async function loadClientDatasetChoices(){
+ const mapping=[['inventory','clientInventorySource'],['coverage','clientCoverageSource'],['pricing','clientPricingSource']];
+ try{
+   const x=await api('/workshop/data-readiness');
+   const data=x.available_snapshots||[];
+   for(const [kind,id] of mapping){
+     const select=$(id),prev=select.value;
+     const choices=data.filter(d=>d.kind===kind);
+     const leading=kind==='inventory'?'': '<option value="">不选择（标记相应证据待核验）</option>';
+     select.innerHTML=leading+choices.map(d=>
+       '<option value="'+d.dataset_id+'">#'+d.dataset_id+' · '+E(d.class)+
+       ' · '+d.record_count+' 条 · '+E(d.checksum_short||'无指纹')+'</option>').join('');
+     if(prev&&choices.some(d=>String(d.dataset_id)===prev))select.value=prev;
+     select.disabled=!choices.length;
+   }
+   $('clientSourceState').textContent='仅显示当前账号有权限的数据集。红豆公交/地铁：需企业审批后私有只读联调；可视化：暂无 API，仅经授权离线导出。'+
+     (data.some(d=>d.class==='synthetic_demo')?' 当前有虚构合成数据，不能用于正式报价。':'');
+ }catch(e){$('clientSourceState').textContent='数据快照查询失败：'+e.message+'。不可假设真实库存已连接。'}
+}
+async function loadClientWorkshopReadiness(runId){
+ const status=$('clientWorkshopStatus'),container=$('clientWorkshopChecks');
+ status.textContent='正在读取方案快照并检查 workshop 规则…';container.textContent='';
+ try{
+   const x=await api('/runs/'+runId+'/workshop-readiness');
+   status.textContent='内部证据检查 '+x.passed_checks+'/'+x.total_checks+
+     ' · '+(x.status==='blocked'?'存在阻断':'仍需人工复核')+
+     ' · 正式标准原文未提供；本报告不是官方打分。';
+   container.innerHTML=x.checks.map(c=>
+     '<div class="review-card"><b>'+({evidence_present:'✓ 已有证据',needs_review:'⚑ 待核验',blocked:'✕ 阻断'}[c.status]||'待核验')+
+     ' · '+E(c.label)+'</b><p>'+E(c.explanation)+'</p></div>').join('');
+ }catch(e){status.textContent='证据审查未完成：'+e.message}
+}
 async function loadClientPreReview(runId){
  const risks=$('clientReviewRisks'),questions=$('clientReviewQuestions'),actions=$('clientReviewActions');
  risks.textContent='正在检查数据缺口…';questions.textContent='正在生成业务追问…';actions.textContent='正在组织人工待办…';

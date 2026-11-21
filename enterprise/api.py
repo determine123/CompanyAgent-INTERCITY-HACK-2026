@@ -21,6 +21,7 @@ from .failure_learning import record_failure
 from .change_workflow import analyze_change, CHANGE_TYPES
 from .impact_metrics import evaluate_pair
 from .demand_memory import summarize_runs, decision_brief, TEMPLATES, MAX_RUNS
+from .workshop_contract import source_snapshot, workshop_readiness
 
 router=APIRouter(prefix='/enterprise/api',tags=['Enterprise Agent Hub'])
 
@@ -67,6 +68,7 @@ class Task(BaseModel):
     measurement_method:str=Field(default='',max_length=300)
     inventory_dataset_id:int|None=None
     coverage_dataset_id:int|None=None
+    pricing_dataset_id:int|None=None
 class BenchmarkRequest(BaseModel):
     landmark:str='正大广场'
     start_date:str='2027-05-01'
@@ -393,6 +395,29 @@ def bounded_tool_calling(request:Request,run_id:int,data:ToolCallingRequest):
     audit(who['id'],'model_tool_success',f'run={run_id};call={cid};tools={len(answer["executed_tools"])}')
     return {'model_call_id':cid,'run_id':run_id,**answer}
 
+@router.get('/runs/{run_id}/workshop-readiness')
+def get_workshop_readiness(run_id:int,request:Request):
+    """Internal workshop evidence gates, never an official score or live availability."""
+    who=req_actor(request)
+    row=_run_for_view(run_id,who)
+    saved=json.loads(row['result_json'])
+    return {'run_id':run_id,**workshop_readiness(json.loads(row['request_json']),saved)}
+
+
+@router.get('/workshop/data-readiness')
+def workshop_data_readiness(request:Request):
+    """Source selector metadata only; omit filenames, raw rows, credentials and URLs."""
+    who=req_actor(request)
+    with db() as c:
+        rows=c.execute('SELECT id,owner_id,kind,origin,count,checksum,visibility,imported_at FROM datasets ORDER BY id DESC').fetchall()
+    safe=[source_snapshot(x,kind=x['kind']) for x in rows if allowed(x,who)]
+    return {'industry':'食品饮料','available_snapshots':safe,
+            'hongdou_bus_metro_status':'private_approval_pending',
+            'visualization_status':'approved_offline_export_only',
+            'real_inventory_connected':False,
+            'note':'快照存在不代表目标日期可售；公网合成模式绝不访问企业库存'}
+
+
 @router.get('/runs/{run_id}/decision-brief')
 def proposal_pre_review(run_id:int,request:Request):
     """Honest Real-Monad-style three-risk pre-review on an authorized frozen Run."""
@@ -575,7 +600,12 @@ def run_task(request:Request,data:Task):
             raise HTTPException(400,'没有可用的已授权库存数据，请先导入')
         cs=next((d for d in covers if allowed(d,who) and
                  (data.coverage_dataset_id is None or d['id']==data.coverage_dataset_id)),None)
-        ps=next((d for d in pricebooks if allowed(d,who)),None)
+        if data.coverage_dataset_id is not None and cs is None:
+            raise HTTPException(403,'指定商圈覆盖快照不存在或无权限：禁止静默切换为无覆盖证据方案')
+        ps=next((d for d in pricebooks if allowed(d,who) and
+                 (data.pricing_dataset_id is None or d['id']==data.pricing_dataset_id)),None)
+        if data.pricing_dataset_id is not None and ps is None:
+            raise HTTPException(403,'指定刊例快照不存在或无权限：禁止静默切换数据来源')
     inventory=json.loads(ds['records_json'])
     coverage=json.loads(cs['records_json']) if cs else []
     prices=json.loads(ps['records_json']) if ps else []
@@ -592,6 +622,10 @@ def run_task(request:Request,data:Task):
                        'BUSINESS_EXECUTION_BLOCKED',str(exc)[:160])
         raise HTTPException(400,str(exc)) from exc
     result['input_dataset_ids']={'inventory':ds['id'],'coverage':cs['id'] if cs else None,'pricing':ps['id'] if ps else None}
+    result['source_evidence']={
+        'inventory':source_snapshot(ds,kind='inventory'),
+        'coverage':source_snapshot(cs,kind='coverage'),
+        'pricing':source_snapshot(ps,kind='pricing')}
     result['skill_policy']=effective_policy
     result['quality_report']=assess_result(result)
     result['evaluation_report']=evaluation(result)
