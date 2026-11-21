@@ -31,7 +31,9 @@ async function parseNaturalBrief(){
  $('parseStatus').textContent=`已提取：${f.industry} · ${f.budget_wan}万 · ${f.focus_landmark||'地标待指定'}`;
  return r;
 }
-async function runTask(){try{const agentId=Number($('taskAgent').value);if(!agentId)throw new Error('请先创建一个有业务 Skill 的 Agent');const payload={agent_id:agentId,brief:$('taskBrief').value,industry:$('taskIndustry').value,brand:$('taskBrand').value,budget_wan:state.budget,start_date:$('taskDate').value,weeks:Number($('taskWeeks').value),landmark:$('taskPlace').value,medium:$('taskMedium').value,coverage_only:$('taskStrict').checked};$('runBtn').disabled=true;$('runBtn').textContent='Agent 正在执行工具…';$('runState').textContent='正在执行';const r=await api('/runs','POST',payload);state.lastRun=r;runHtml(r);refreshStatus();toast('任务完成，已记录执行轨迹')}catch(e){$('runState').textContent='执行失败';toast(e.message)}finally{$('runBtn').disabled=false;$('runBtn').innerHTML='✦ 让 Agent 执行任务 <span>→</span>'}}
+async function runTask(){try{const agentId=Number($('taskAgent').value);if(!agentId)throw new Error('请先创建一个有业务 Skill 的 Agent');const payload={agent_id:agentId,brief:$('taskBrief').value,industry:$('taskIndustry').value,brand:$('taskBrand').value,budget_wan:state.budget,start_date:$('taskDate').value,weeks:Number($('taskWeeks').value),landmark:$('taskPlace').value,medium:$('taskMedium').value,coverage_only:$('taskStrict').checked};$('runBtn').disabled=true;$('runBtn').textContent='Agent 正在执行工具…';$('runState').textContent='正在执行';const submittedAt=performance.now();
+  const r=await api('/runs','POST',payload);
+  state.lastClientDurationMs=Math.max(0,performance.now()-submittedAt);state.lastRun=r;runHtml(r);refreshStatus();toast('任务完成，已记录执行轨迹')}catch(e){$('runState').textContent='执行失败';toast(e.message)}finally{$('runBtn').disabled=false;$('runBtn').innerHTML='✦ 让 Agent 执行任务 <span>→</span>'}}
 function copyResult(){if(!state.lastRun)return;const r=state.lastRun,p=r.plan,text=[`${p.brand} · ${p.budget_wan}万元投放方案`,r.rationale,`参考合计${p.spent_wan}万元；候选${p.item_count}项；需要2027库存确认。`,...r.alerts].join('\n');navigator.clipboard?.writeText(text).then(()=>toast('已复制方案摘要')).catch(()=>toast('复制失败，请使用浏览器复制'))}
 async function refreshData(){try{const d=await api('/datasets');state.datasets=d.items;
  for(const [id,kind] of [['bridgeInventory','inventory'],['bridgeCoverage','coverage']]){
@@ -157,6 +159,24 @@ bootstrap();
 
 
 // Competition customer-facing workflow: reuses the audited enterprise Agent Run.
+function renderEfficiency(){
+ const duration=state.lastClientDurationMs;
+ if(duration===undefined)return;
+ $('clientLatency').textContent='本次从提交到方案返回：'+(duration/1000).toFixed(2)+' 秒（含网络；不含人工复核）';
+ const base=$('clientManualBaseline').value.trim();
+ const review=$('clientReviewMinutes').value.trim();
+ if(base===''||review===''){
+   $('clientEfficiency').textContent='待填：企业相似案例人工用时 + 本次人工复核用时。仅测得页面响应时间，不能推断真实降本。';
+   return;
+ }
+ const b=Number(base),r=Number(review);
+ if(!Number.isFinite(b)||!Number.isFinite(r)||b<=0||r<0){
+   $('clientEfficiency').textContent='请填写非负的实测工时；人工基线必须大于零。';
+   return;
+ }
+ const delta=b-r-duration/60000;
+ $('clientEfficiency').textContent='根据手工填写数据的单案例工时差：'+(delta>=0?'节约 ':'增加 ')+Math.abs(delta).toFixed(2)+' 分钟；仅用于内部对照，需核实相同任务复杂度、样本量及实际审查耗时，不能据此宣称企业总体 ROI。';
+}
 async function generateClientProposal(){
  const b=$('clientGenerate');b.disabled=true;b.textContent='正在分析授权数据和预算约束…';
  $('clientRunState').textContent='执行中';
@@ -183,6 +203,7 @@ async function generateClientProposal(){
   state.lastRun=r;
   runHtml(r); // Same verified result is also visible in original task studio.
   renderClientProposal(r);
+  renderEfficiency();
   refreshStatus();
   toast('客户方案已生成：可查看质量和媒体依据');
  }catch(err){$('clientRunState').textContent='执行未成功';toast(err.message)}
@@ -222,6 +243,8 @@ async function analyzeClientChange(){
  }catch(e){toast(e.message)}finally{b.disabled=false}
 }
 $('clientGenerate').onclick=generateClientProposal;
+$('clientManualBaseline').oninput=renderEfficiency;
+$('clientReviewMinutes').oninput=renderEfficiency;
 $('changeAnalyze').onclick=analyzeClientChange;
 $('clientExport').onclick=()=>{
  if(!state.lastRun?.run_id){toast('请先生成方案');return}
