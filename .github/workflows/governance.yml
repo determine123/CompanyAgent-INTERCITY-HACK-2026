@@ -1,0 +1,18 @@
+name: Governance workbench check
+on:
+  push:
+  pull_request:
+jobs:
+  governance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript syntax checks
+        run: |
+          node --check governance_site/core.js
+          node --check governance_site/app.js
+      - name: Governance deterministic logic regression
+        run: node --test governance_site/core.test.js

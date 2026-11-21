@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'none'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<title>CompanyAgent · 安全治理与迁云验证站</title>
+<link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+<div class="shell">
+  <aside class="sidebar" aria-label="工作台导航">
+    <div class="brand"><div class="brandmark">✦</div><div><b>Company<span>Agent</span></b><small>GOVERNANCE & CLOUD</small></div></div>
+    <div class="side-eyebrow">CONTROL CENTER</div>
+    <nav id="navigation"></nav>
+    <div class="side-bottom"><div class="local-chip">● LOCAL-FIRST</div><p>当前为脱敏治理台原型。仅浏览器本地保存；不连接内网、不接收真实密钥。</p><a href="/enterprise/" id="enterpriseLink">返回客户需求与 Agent 方案 ↗</a></div>
+  </aside>
+  <main class="main">
+    <header class="topbar"><div class="crumb">CompanyAgent <span>/</span> 安全治理 <span>/</span> <b id="crumbTitle">总览</b></div><div class="toolbar"><span class="date" id="clock">2026-11-21 基线</span><button id="exportBtn" class="button ghost">导出 JSON</button><label class="button ghost import">导入 JSON<input id="importFile" type="file" accept="application/json,.json"></label><button id="resetBtn" class="button quiet">恢复示例</button></div></header>
+    <section class="hero"><div><div class="eyebrow">SECURITY BY DESIGN · EVIDENCE BEFORE DECISION</div><h1>从 OpenClaw 迁云<br><em>到企业 Agent 可验证治理。</em></h1><p>方案有依据，工具有权限，运行有审计，失败可回滚。每项记录单独标注：已核实 / 待验证 / 规划能力 / 最终决策。</p><div class="hero-actions"><button id="reportShortcut" class="button solid">生成汇报摘要 →</button><button id="riskShortcut" class="button outline">查看风险与边界</button></div></div><div class="principle"><span>不可跨越的边界</span><strong>公开任务可以先迁移。</strong><p>公司内部 API、凭证和敏感数据，必须先经身份、网络、权限和合规隔离验证，再决定是否迁移。</p><small>默认拒绝 · 最小权限 · 人工审批 · 可回滚</small></div></section>
+    <section class="overview"><div class="metric"><small>治理检查项</small><b id="metricControls">—</b><span>按当前状态持续更新</span></div><div class="metric"><small>迁移任务</small><b id="metricTasks">—</b><span>含验证与回滚记录</span></div><div class="metric"><small>门禁未通过</small><b id="metricGates">—</b><span>未通过不等于生产就绪</span></div><div class="metric"><small>风险 / 待决策</small><b id="metricRisks">—</b><span>自动生成、需要复核</span></div></section>
+    <div class="content-head"><div><div class="eyebrow" id="sectionIndex">01 / 09</div><h2 id="sectionTitle">迁云方案</h2><p id="sectionDesc"></p></div><div class="section-actions"><button class="button outline" id="addRecord">＋ 新增记录</button></div></div>
+    <div id="notice" role="status" aria-live="polite"></div>
+    <div id="workspace"></div>
+    <footer>CompanyAgent Governance Lab · 演示基线 2026-11-21 · 使用者应自行核验外部价格与企业权限，历史记录不自动升级为“已核实”。</footer>
+  </main>
+</div>
+<dialog id="editor"><form id="editorForm"><div class="modal-head"><h3 id="editorTitle">编辑记录</h3><button type="button" class="close" id="cancelEditor" aria-label="关闭">×</button></div><div id="editorFields"></div><div class="modal-foot"><button type="button" class="button ghost" id="cancelEditor2">取消</button><button class="button solid" type="submit">保存记录</button></div></form></dialog>
+<script src="./core.js"></script><script src="./app.js"></script>
+</body>
+</html>
