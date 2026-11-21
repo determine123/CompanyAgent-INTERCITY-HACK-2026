@@ -8,12 +8,6 @@ on:
         required: true
         default: "glm-5.2"
         type: string
-  push:
-    branches:
-      - feat/cloud-tokendance-acceptance
-      - feat/cloud-tokendance-diagnostics
-    paths:
-      - .github/workflows/tokendance-live.yml
 
 permissions:
   contents: read
