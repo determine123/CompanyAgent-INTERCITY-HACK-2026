@@ -7,6 +7,10 @@
 
 > 愿景：企业员工只需要描述要解决的问题，平台就能帮助搭建岗位 Agent/Skill、使用授权数据执行任务，并根据结果反馈持续改进。**先解决问题，再证明改进有效。**
 
+## GitHub Actions 云端 TokenDance 实网验收
+
+新增独立 **TokenDance LIVE Tool Calling (synthetic only)** 工作流，使用 GitHub **Repository Secret `TOKENDANCE_API_KEY`** 安全注入密钥（`workflow_dispatch` 手动选择支持 Tool Calling 的模型）。脚本只使用合成聚合数据，成功时生成 7 天有效的脱敏证据附件。**首次云端执行被缺少 Secret 的预检阻塞，没有完成真实请求**；完整说明与首次运行记录见 [GitHub Actions 联调手册](docs/TOKENDANCE_GITHUB_CLOUD_RUN.md)。
+
 ## v1.4 · TokenDance 受限 Tool Calling（可选，需本人兑换与配置）
 
 - 新增固定地址 `https://tokendance.space/gateway/v1/chat/completions`，只能通过服务端 `COMPANYAGENT_MODEL_PROVIDER=tokendance` 启用；密钥与模型 ID 分别来自 `TOKENDANCE_API_KEY`、`TOKENDANCE_MODEL`，不提供任意自定义 URL。
