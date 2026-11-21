@@ -7,9 +7,16 @@
 
 > 愿景：企业员工只需要描述要解决的问题，平台就能帮助搭建岗位 Agent/Skill、使用授权数据执行任务，并根据结果反馈持续改进。**先解决问题，再证明改进有效。**
 
-## v1.7 · Railway 两服务公网演示（等待账户连接）
+## v1.8 · 公网端到端验收 / 红豆企业私有试点探针
 
-新增 [Railway 专用部署手册](deploy/railway/README.md)：通过 GitHub 同一仓库创建**一个无公网域名的 CompanyAgent 私有后端**（`companyagent.railway.internal:8765`）及**唯一公网 Caddy 认证网关**（`PORT=8080`，Railway 托管 HTTPS）。仅展示食品饮料合成客户需求/参考方案，不包含真实红豆接口、可视化 API、TokenDance Key 或企业数据。此仓库交付部署配置和安全 CI，**尚未创建 Railway 账户资源或实际公网网址**。
+- **已在真实 Railway HTTPS 公网地址完成 25/25 项接口验收**：正确网关密码与应用登录、安全 Cookie、Agent 列表、食品饮料合成需求、方案 Run #3 的生成与读取；错误密码/无会话返回 401、非食品饮料返回 400、旧版 API/导入/用户创建/数据同步/跨行业基准测试返回 403。详见 [2026-11-21 实网验收报告](docs/RAILWAY_REAL_PUBLIC_E2E_2026-11-21.md)。这是实际网络 HTTP API 测试，不是图形浏览器端的手工点击验收。
+- **红豆公交/地铁库存只读客户端现已实现**，带精确企业网络出口主机、私有路由、日期与分页、租户授权、Bearer Token、TLS、无重定向、限量响应检查；仅在公司批准的私有环境中由操作员显式执行，不通过公网 Railway、GitHub Actions 或外部模型发起企业数据请求。参见 [私有联调操作手册](docs/HONGDOU_PRIVATE_PILOT_RUNBOOK.md)。
+- **当前仍未完成真实红豆 API 联调**：接口说明包含 GET 路径与请求头，但尚无可用授权 Token、已批准的私有运行环境或经过审核的匿名响应字段样例。HTTP 200 也只能作为接口契约探针结果，不能直接当作可售库存。
+- Railway 公网演示继续使用食品饮料合成数据，且已新增防护：任何 `HONGDOU_PILOT_*` 变量配置都会使 `cloud_synthetic` 启动拒绝。企业真实数据接入与 OpenClaw 生产迁移门禁不变。
+
+## v1.7 · Railway 两服务公网演示（已部署合成展示）
+
+新增 [Railway 专用部署手册](deploy/railway/README.md)：通过 GitHub 同一仓库创建**一个无公网域名的 CompanyAgent 私有后端**（`companyagent.railway.internal:8765`）及**唯一公网 Caddy 认证网关**（`PORT=8080`，Railway 托管 HTTPS）。仅展示食品饮料合成客户需求/参考方案，不包含真实红豆接口、可视化 API、TokenDance Key 或企业数据。此仓库交付部署配置和安全 CI，**实际 Railway 双服务已部署；公网入口 [在线工作台](https://companyagent-intercity-hack-2026-production.up.railway.app/enterprise/)，只用于合成数据**。
 
 ## v1.6 · 公网合成演示入口 / 食品饮料行业 / 红豆企业试点
 
