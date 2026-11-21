@@ -27,6 +27,7 @@ const seed=()=>({version:1,updated:'2026-11-21',records:{
 cloud:[
  {provider:'AWS',plan:'Lightsail 4 GB（公开任务试点）',region:'us-west-2 / us-east-1 待实测',cost:'约 USD 24/月（历史估算，待官网核价）',network:'静态 IPv4；实际出口、延迟与区域可用性待测',boundary:'仅公开任务；禁止直连公司内网 API',evidence:'前期调研方案；未完成选区实测',state:'待验证'},
  {provider:'AWS',plan:'EC2 + VPC 企业隔离',region:'与公司企业网络对齐',cost:'未核定；需列实例、NAT、流量和日志费用',network:'VPC、PrivateLink/VPN/专线按实际批准方案选型',boundary:'内部 API 需企业许可、最小权限及出口控制',evidence:'目标架构规划，不代表企业 VPC 已开通',state:'规划能力'},
+ {provider:'Railway',plan:'v1.7 食品饮料合成公网演示（Caddy + FastAPI 单容器）',region:'尚未选择 Railway 区域',cost:'尚未开通项目；按 Railway 账单实际核算',network:'Railway HTTPS 域名 → 认证 Caddy → 127.0.0.1:8765',boundary:'无企业真实数据、无红豆 API Token、无对内 API；仅合成展示',evidence:'GitHub Actions #44899511956：单镜像认证/403/健康检查 PASS；Railway 账号未连接、项目未创建',state:'已核实'},
  {provider:'Azure / Google Cloud',plan:'候选对照',region:'北美待选',cost:'待核价',network:'连通性与公司合规审查待验证',boundary:'未批准接入任何企业内部 API',evidence:'备选平台，未完成对照试验',state:'待验证'}],
 architecture:[
  {component:'Hermes Agent Runtime',design:'承载任务执行、工具编排及失败记录',boundary:'Runtime 不直接持有长期高权限凭证',gate:'隔离执行、超时/重试/幂等与失败注入',state:'规划能力'},
@@ -55,15 +56,18 @@ gates:[
  {gate:'IMDS 真实数据门禁',criteria:'规则映射、异常分支、万行性能及人工复核逐项留证',status:'待验证',failure:'当前只掌握合成测试历史记录',rollback:'需要人工复核的结果不可自动 Approve / Reject',evidence:'待测试包/人工样例',state:'待验证'},
  {gate:'模型 Tool Calling 实联调（合成数据）',criteria:'授权 TokenDance API Key + 实际 tool_calls + 三类只读工具',status:'通过',failure:'deepseek-v3.2 曾 HTTP 403，原因未确定；glm-5.2 已通过',rollback:'超权限/非法参数/模型异常一律拒绝并回退确定性方案',evidence:'GitHub Actions #44896062819，glm-5.2 实网 3 tools，脱敏 artifact #14703494776',state:'已核实'},
  {gate:'云端合成镜像与隔离',criteria:'非 root 镜像、回环绑定、旧版 API 禁用、无企业 Key/数据',status:'通过',failure:'仅 GitHub Runner 单次容器验证；AWS 企业网络尚未部署',rollback:'任意公开端口或企业凭据注入即拒绝启动',evidence:'Cloud synthetic container smoke #44896850328；不等于 AWS 生产验收',state:'已核实'},
+ {gate:'Railway 公网演示部署验收',criteria:'授权云账户、随机双层密码、Railway HTTPS 域名、401/403/健康检查、费用限额',status:'待验证',failure:'仅 Docker 镜像 CI 通过，Railway 连接与外网实际部署尚未完成',rollback:'撤下 Railway 域名或停止服务，删除临时数据并轮换凭据',evidence:'Railway image CI #44899511956；非实际 Railway 部署',state:'待验证'},
  {gate:'企业真实数据接入审批',criteria:'数据所有者+安全负责人审批、数据范围、留存与审计',status:'未通过',failure:'无真实数据授权、企业 SSO 与租户隔离证据',rollback:'不得上传/同步真实企业数据；转离线校验与人工审批',evidence:'enterprise/ingress_review.py 仅校验离线摘要，不进行实际写入',state:'待验证'}],
 migration:[
  {task:'冻结 OpenClaw 任务清单与依赖',phase:'准备',status:'进行中',owner:'迁移负责人',failure:'任务/密钥/网络依赖尚未完整盘点',rollback:'原运行环境与调度配置保持可恢复',acceptance:'清单审签；Cron / API / 内网依赖分类',state:'待验证'},
  {task:'GitHub 云端合成容器验证',phase:'Cloud CI 验证',status:'已完成（合成数据）',owner:'项目 CI',failure:'尚无实际 AWS VPC 资源与真实业务负载',rollback:'不对公网开放，变更不通过即销毁临时容器',acceptance:'Cloud synthetic Docker smoke #44896850328，旧 API 和导入入口返回403',state:'已核实'},
+ {task:'Railway 食品饮料公网合成演示',phase:'演示部署',status:'代码与 CI 完成；等待账号连接',owner:'Railway 账户所有者',failure:'没有 Railway 连接/授权、域名与实际账单证据',rollback:'取消公网域名并停止服务，容器临时数据不保留',acceptance:'真实 *.up.railway.app HTTPS 地址、401/403、健康检查与独立登录证据',state:'待验证'},
  {task:'Lightsail 北美公开任务试点',phase:'公开任务试点',status:'未开始',owner:'云平台负责人',failure:'主机/网络/成本实测待安排',rollback:'失败即恢复旧 Cron，避免双活重复执行',acceptance:'真实连续运行与对照日志',state:'规划能力'},
  {task:'CompanyAgent / Hermes Shadow Mode',phase:'双轨验证',status:'未开始',owner:'Agent 平台负责人',failure:'尚未达到治理负向门禁',rollback:'禁写与流量切回 OpenClaw',acceptance:'同输入同结果；工具权限与审计匹配',state:'规划能力'},
  {task:'公司内部 API 接入',phase:'独立隔离验收',status:'阻断',owner:'企业安全责任人',failure:'没有正式网络及数据访问授权',rollback:'默认保持未连接；撤销临时凭证',acceptance:'授权审批、隔离测试、审计、应急预案完整',state:'待验证'}],
 decisions:[
  {question:'公开任务试点选型',options:'Lightsail 4 GB / EC2 小规格 / Azure / Google Cloud',owner:'项目负责人',impact:'费用、区域、运行稳定性及网络延迟',status:'待确认',evidence:'需要实际价格和北美连通性对照',state:'待验证'},
+ {question:'Railway 演示服务创建和费用权限',options:'Railway 账户连接 → 新项目 → GitHub main 根 Dockerfile → 加密 Variables → 生成 HTTPS 域名',owner:'Railway 项目所有者',impact:'需防止费用超限及错误公网暴露；仅限合成数据',status:'待确认',evidence:'代码与 Docker CI 已完成；没有实际 Railway 部署或账单',state:'待验证'},
  {question:'内部 API 的云上访问方式',options:'继续企业现有环境 / EC2 + 企业 VPC + 经批准网络链路',owner:'企业网络与安全审批人',impact:'最高风险：数据外发与跨网边界',status:'未决定',evidence:'禁止在批准前开放生产内网访问',state:'待验证'},
  {question:'CompanyAgent 替换旧平台验收窗口',options:'公开只读任务 Shadow Mode → 审计评审 → 分批切流',owner:'平台负责人',impact:'任务重复、漏执行、密钥与回滚责任',status:'未决定',evidence:'需书面门禁通过报告',state:'规划能力'}]
 }});
