@@ -108,7 +108,7 @@ def decision_brief(result):
                       "evidence":"没有真实业务人员签署投放合同、质量验收和客户 KPI 基线",
                       "fix":"确认人负责审核，建立反馈和结案证据"})
     return {
-        "label":"基于已授权数据库与冻结 Run 的规则预审，非市场效果最优证明",
+        "label":"基于已授权数据库与冻结 Run 的规则预审；不等于商业收益最优",
         "status":quality.get("status","needs_review"),
         "chosen_count":len(plan.get("selected") or []),
         "budget_wan":plan.get("budget_wan"),
