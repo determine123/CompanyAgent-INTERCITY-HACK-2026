@@ -21,3 +21,9 @@ runtime/
 **/FIRST_LOGIN.txt
 # Provider accounts, API keys, employee or contest data
 .env.*.local
+
+# Public-demo secrets stay only on the operator machine, never in source or Docker images.
+deploy/public-demo/.env
+deploy/public-demo/.env.*.local
+**/.env
+**/.env.*.local
