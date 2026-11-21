@@ -1,0 +1,19 @@
+{
+  "stage": "production_migration",
+  "attestations": {
+    "enterprise_pilot_accepted": {"status": "pending", "evidence_ref": "", "reviewer": ""},
+    "oidc_sso": {"status": "pending", "evidence_ref": "", "reviewer": ""},
+    "tenant_isolation": {"status": "pending", "evidence_ref": "", "reviewer": ""},
+    "kms_secret_manager": {"status": "pending", "evidence_ref": "", "reviewer": ""},
+    "private_vpc": {"status": "pending", "evidence_ref": "", "reviewer": ""},
+    "mcp_tool_pdp_pep": {"status": "pending", "evidence_ref": "", "reviewer": ""},
+    "audit_immutability": {"status": "pending", "evidence_ref": "", "reviewer": ""},
+    "performance_e2e": {"status": "pending", "evidence_ref": "", "reviewer": ""},
+    "backup_restore_drill": {"status": "pending", "evidence_ref": "", "reviewer": ""},
+    "rollback_drill": {"status": "pending", "evidence_ref": "", "reviewer": ""},
+    "mentor_approval": {"status": "pending", "evidence_ref": "", "reviewer": ""},
+    "data_owner_approval": {"status": "pending", "evidence_ref": "", "reviewer": ""},
+    "security_approval": {"status": "pending", "evidence_ref": "", "reviewer": ""},
+    "sre_approval": {"status": "pending", "evidence_ref": "", "reviewer": ""}
+  }
+}
