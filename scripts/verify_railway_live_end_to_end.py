@@ -35,7 +35,11 @@ def check_env(env):
 def run():
     base=check_env(os.environ)
     jar=http.cookiejar.CookieJar()
-    opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar))
+    class NoRedirect(urllib.request.HTTPRedirectHandler):
+        def redirect_request(self, req, fp, code, msg, headers, newurl):
+            # A public-domain acceptance probe must not follow off-site redirects.
+            return None
+    opener=urllib.request.build_opener(urllib.request.HTTPCookieProcessor(jar),NoRedirect())
     user=os.environ["RAILWAY_LIVE_GATEWAY_USER"]
     password=os.environ["RAILWAY_LIVE_GATEWAY_PASSWORD"]
     basic="Basic "+base64.b64encode((user+":"+password).encode()).decode("ascii")
