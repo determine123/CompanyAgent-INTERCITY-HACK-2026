@@ -29,6 +29,19 @@ export TOKENDANCE_API_KEY
 
 Provider 和 URL **固定白名单**：`b1x` 与 `tokendance`，不支持模型/客户输入指定自定义 URL。切回 B1X：`COMPANYAGENT_MODEL_PROVIDER=b1x` 且配置 `B1X_API_KEY`。
 
+### Windows 一次性安全启动（推荐）
+
+在自己的 Windows PowerShell 中更新仓库后，从项目根目录执行：
+
+```powershell
+python -m pip install -r requirements-dev.txt
+powershell -ExecutionPolicy Bypass -File scripts/accept_tokendance.ps1
+```
+
+脚本要求手动填写控制台核验的模型 ID、输入大写 `YES` 确认本次合成数据联网请求，再在隐藏输入框中输入**轮换后的新 API Key**。它调用同一个受限验收脚本，按退出码判断是否有真正 `tool_calls`，并在结束时清空本进程的环境变量。**不要把任何密钥复制到 PowerShell 命令行参数中。**
+
+如果旧密钥曾经贴进聊天、工单或截图，先到 TokenDance 控制台撤销旧密钥并创建新的短期低额度密钥。运行成功不意味着正式业务数据已得到授权或生产环境安全门禁通过。
+
 ## 3. 验收顺序
 
 先运行离线回归（不会消耗额度）：
