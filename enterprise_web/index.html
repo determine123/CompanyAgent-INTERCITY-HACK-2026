@@ -13,10 +13,18 @@
         <div class="client-grid">
           <article class="panel client-panel"><div class="section-row"><h2><span class="section-number">01</span> 填写客户需求</h2><span class="pill">CLIENT BRIEF</span></div>
             <label>客户需求 / Campaign Brief</label><textarea id="clientBrief" rows="4" placeholder="例如：为上海饮料品牌的2027年夏季活动设计可验证的公交/地铁投放组合。">面向上海门店周边用户，以正大广场商圈为核心；要求预算可随时在100/200/500万元之间切换，并给出上刊前风险及需要客户确认的事项。</textarea>
-            <div class="pair"><div><label>目标品牌</label><input id="clientBrand" value="农夫山泉" maxlength="80"></div><div><label>行业</label><select id="clientIndustry"><option>食品饮料</option><option>银行保险</option><option>保健品</option><option>私立医院</option><option>乐园（主题公园）</option></select></div></div>
+            <div class="pair"><div><label>目标品牌</label><input id="clientBrand" value="模拟饮料品牌A" maxlength="80"></div><div><label>行业</label><select id="clientIndustry"><option>食品饮料</option><option>银行保险</option><option>保健品</option><option>私立医院</option><option>乐园（主题公园）</option></select></div></div>
             <div class="pair"><div><label>预算</label><select id="clientBudget"><option value="100">100 万元</option><option value="200" selected>200 万元</option><option value="500">500 万元</option></select></div><div><label>投放开始（2027年）</label><input id="clientDate" type="date" min="2027-01-01" max="2027-12-01" value="2027-05-01"></div></div>
             <div class="pair"><div><label>商圈 / 地标</label><select id="clientPlace"><option>正大广场</option><option>上海南站</option><option>新天地</option><option value="">待确认</option></select></div><div><label>媒体形式</label><select id="clientMedium"><option value="both">公交车身 + 地铁出入口</option><option value="bus">仅公交</option><option value="metro">仅地铁</option></select></div></div>
             <div class="pair"><div><label>投放周期</label><select id="clientWeeks"><option value="4">4 周</option><option value="8">8 周</option><option value="12">12 周</option></select></div><div><label>执行 Agent（员工可以自建）</label><select id="clientAgent"></select></div></div>
+            <details class="panel" open><summary><b>Campaign 假设书 · 赛题必填七要素</b> <small>行业、品牌、档期、预算、媒体已在上方填写</small></summary>
+              <p class="micro">企业业务问题：新销售经常只知道预算、不知道品牌的生意目标；本表把客户假设变为可核验的输入，未提供的内容必须标为待确认。</p>
+              <label>② 客户生意目标（为什么投）</label><input id="clientBusinessGoal" maxlength="300" value="上海便利店新品铺货与试饮转化（模拟需求，待客户确认）" placeholder="例：新品铺货、到店转化、渠道促销">
+              <div class="pair"><div><label>③ Campaign 主目标（四选一）</label><select id="clientCampaignGoal"><option>到店</option><option>认知</option><option>促销</option><option>拉新</option></select></div><div><label>④ 目标人群</label><input id="clientAudience" maxlength="300" value="18–30 岁上海通勤白领（模拟画像）" placeholder="人群和城市活动区域"></div></div>
+              <label>⑦ 核心 KPI（衡量什么）</label><input id="clientKpi" maxlength="300" value="试饮活动扫码次数（目标值由品牌确认）" placeholder="例：活动扫码次数、到店转化等，勿编造人流">
+              <label>⑦ 数据如何核验（拿什么证明）</label><input id="clientMeasurement" maxlength="300" value="客户后台扫码记录 + 上下刊照片 + 结案报告；没有证据则标记未验证" placeholder="例：客户扫码后台、上下刊照片、结案报告">
+              <p class="micro">七要素全部入稿，但这不是客户已批准的 Brief；真实媒体档期、曝光、价格、ROI 均不可从合成数据推断。</p>
+            </details>
             <label class="checkbox"><input type="checkbox" id="clientCoverage" checked> 仅推荐有商圈覆盖证据的媒体</label>
             <button class="primary big" id="clientGenerate">✦ Agent 生成可验证方案 <span>→</span></button>
             <p class="micro">只使用当前账号已授权的数据集；不自动向客户发送方案，不锁位，不进行商业报价承诺。</p>
@@ -25,6 +33,12 @@
             <div class="welcome" id="clientEmpty"><div class="orb">✦</div><h3>把需求变成可解释方案</h3><p>系统将筛选媒体、执行预算优化，并给出数据依据、风险清单和下一步人工核验事项。</p></div>
             <div class="hidden" id="clientProposal"><div class="result-banner"><small>REVIEWABLE DRAFT · NOT A BOOKING</small><h3 id="clientTitle">—</h3><p id="clientIntro">—</p></div>
               <div class="client-kpis"><div><small>参考预算使用</small><strong id="clientSpent">—</strong></div><div><small>候选媒体</small><strong id="clientCount">—</strong></div><div><small>证据覆盖</small><strong id="clientEvidence">—</strong></div></div>
+              <h3 class="subhead">效率验证 · 不编造 ROI</h3>
+              <div class="info-strip" id="clientLatency">本次生成响应耗时：尚未测量</div>
+              <div class="pair"><div><label>企业相似提案人工耗时（分钟，选填）</label><input id="clientManualBaseline" type="number" min="0" step="0.1" placeholder="企业实测后填写"></div><div><label>本次人工审查耗时（分钟，选填）</label><input id="clientReviewMinutes" type="number" min="0" step="0.1" placeholder="企业实测后填写"></div></div>
+              <div id="clientEfficiency" class="micro">尚无双方完整工时数据：不能声称已经节省人时或成本。</div>
+              <h3 class="subhead">一页式 Campaign 假设书</h3><div id="clientHypothesisStatus" class="info-strip">生成后核对七要素</div><div id="clientHypothesisRows" class="client-warnings"></div>
+              <h3 class="subhead">预算变化与增减媒介</h3><div id="clientScenarioRows" class="client-warnings">100 / 200 / 500 万元将从同一库存快照分别计算</div>
               <h3 class="subhead">候选媒体清单</h3><div class="client-table-wrap"><table class="client-table"><thead><tr><th>媒体</th><th>数量</th><th>参考万元</th><th>覆盖证据</th></tr></thead><tbody id="clientRows"></tbody></table></div>
               <h3 class="subhead">需要核验</h3><div id="clientWarnings" class="client-warnings"></div>
               <div class="client-actions"><button class="secondary" id="clientExport">下载交互式 HTML</button><button class="secondary" id="clientModel">授权受限模型分析</button><button class="secondary" id="clientGoStudio">查看工具调用轨迹</button></div>
@@ -46,9 +60,9 @@
         <div class="stats"><article class="stat"><div class="stat-top">已创建 Agent <span>◎</span></div><strong id="statAgents">—</strong><small>个人与企业共享</small></article><article class="stat"><div class="stat-top">业务 Skills <span>✧</span></div><strong id="statSkills">—</strong><small>安全白名单工具</small></article><article class="stat"><div class="stat-top">已导入数据集 <span>▦</span></div><strong id="statDatasets">—</strong><small>带来源与快照标签</small></article><article class="stat"><div class="stat-top">任务执行次数 <span>↗</span></div><strong id="statRuns">—</strong><small>可查看执行轨迹</small></article></div>
         <div class="workgrid"><article class="panel task-form"><div class="section-row"><h2><span class="section-number">01</span> 任务输入</h2><span class="pill">ASK → PLAN → ACT</span></div>
            <label>执行 Agent</label><select id="taskAgent"></select>
-           <label>自然语言需求</label><textarea id="taskBrief" rows="3">给农夫山泉制定一份2027年5月上海200万元的户外广告投放方案，优先覆盖正大广场周边500米，预算变化后重新选择最合适的线路。</textarea>
+           <label>自然语言需求</label><textarea id="taskBrief" rows="3">给模拟饮料品牌A制定一份2027年5月上海200万元的户外广告投放方案，优先覆盖正大广场周边500米，预算变化后重新选择最合适的线路。</textarea>
            <div class="brief-toolbar"><button class="secondary" id="parseBriefBtn" type="button">↻ 从文字识别需求字段</button><span id="parseStatus">可识别预算、品牌、行业、地标与日期</span></div>
-           <div class="pair"><div><label>目标品牌</label><input id="taskBrand" value="农夫山泉"></div><div><label>所属行业</label><select id="taskIndustry"><option>食品饮料</option><option>银行保险</option><option>保健品</option><option>私立医院</option><option>乐园（主题公园）</option></select></div></div>
+           <div class="pair"><div><label>目标品牌</label><input id="taskBrand" value="模拟饮料品牌A"></div><div><label>所属行业</label><select id="taskIndustry"><option>食品饮料</option><option>银行保险</option><option>保健品</option><option>私立医院</option><option>乐园（主题公园）</option></select></div></div>
            <label>投放预算（万元）</label><div class="budget-pills"><button class="budget active" data-budget="100">100 万</button><button class="budget" data-budget="200">200 万</button><button class="budget" data-budget="500">500 万</button></div>
            <div class="pair"><div><label>投放起始日期</label><input id="taskDate" type="date" value="2027-05-01"></div><div><label>投放周期</label><select id="taskWeeks"><option value="4">4 周</option><option value="8">8 周</option><option value="12">12 周</option></select></div></div>
            <div class="pair"><div><label>目标地标</label><select id="taskPlace"><option>正大广场</option><option>上海南站</option><option>新天地</option><option value="">不指定</option></select></div><div><label>媒介形式</label><select id="taskMedium"><option value="both">公交+地铁</option><option value="bus">仅公交</option><option value="metro">仅地铁</option></select></div></div>

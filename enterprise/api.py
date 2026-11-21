@@ -57,6 +57,12 @@ class Task(BaseModel):
     landmark:str='正大广场'
     medium:str='both'
     coverage_only:bool=True
+    # Explicit client-origin campaign goals; do not infer unprovided commercial claims.
+    business_goal:str=Field(default='',max_length=300)
+    campaign_goal:str=Field(default='',max_length=20)
+    target_audience:str=Field(default='',max_length=300)
+    success_kpi:str=Field(default='',max_length=300)
+    measurement_method:str=Field(default='',max_length=300)
     inventory_dataset_id:int|None=None
     coverage_dataset_id:int|None=None
 class BenchmarkRequest(BaseModel):
