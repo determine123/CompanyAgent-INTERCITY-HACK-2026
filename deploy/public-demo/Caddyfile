@@ -1,0 +1,19 @@
+# Public-facing *synthetic-only* demo. Never expose this backend directly.
+# A real DNS hostname enables Caddy-managed HTTPS; all requests require Basic Auth.
+{$PUBLIC_DEMO_DOMAIN} {
+    encode zstd gzip
+    header {
+        Strict-Transport-Security "max-age=31536000"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "no-referrer"
+        Cache-Control "no-store"
+        -Server
+    }
+    basic_auth {
+        {$PUBLIC_DEMO_USER} {$PUBLIC_DEMO_BCRYPT_HASH}
+    }
+    @unsafe path /api /api/* /enterprise/api/datasets/upload /enterprise/api/sources /enterprise/api/sources/* /enterprise/api/data/bridge/reconcile
+    respond @unsafe 403
+    reverse_proxy companyagent:8765
+}
