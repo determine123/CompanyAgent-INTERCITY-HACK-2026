@@ -7,6 +7,10 @@
 
 > 愿景：企业员工只需要描述要解决的问题，平台就能帮助搭建岗位 Agent/Skill、使用授权数据执行任务，并根据结果反馈持续改进。**先解决问题，再证明改进有效。**
 
+## v1.7 · Railway 两服务公网演示（等待账户连接）
+
+新增 [Railway 专用部署手册](deploy/railway/README.md)：通过 GitHub 同一仓库创建**一个无公网域名的 CompanyAgent 私有后端**（`companyagent.railway.internal:8765`）及**唯一公网 Caddy 认证网关**（`PORT=8080`，Railway 托管 HTTPS）。仅展示食品饮料合成客户需求/参考方案，不包含真实红豆接口、可视化 API、TokenDance Key 或企业数据。此仓库交付部署配置和安全 CI，**尚未创建 Railway 账户资源或实际公网网址**。
+
 ## v1.6 · 公网合成演示入口 / 食品饮料行业 / 红豆企业试点
 
 - **公网演示配置**：新增 [Caddy HTTPS + Basic Auth 网关](deploy/public-demo/README.md) 与 Docker Compose。后端无 host-published `8765`，在 Docker 私有网络以非 root、只读根文件系统运行；仅供合成数据演示，不是生产部署。需自行准备 VPS、真实域名、DNS、两层独立认证及云侧入站规则；**当前仓库没有实际公网访问地址，也未代为开通云主机**。

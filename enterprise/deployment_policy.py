@@ -40,6 +40,20 @@ def validate_deployment(env=None):
             raise RuntimeError("CLOUD_SYNTHETIC_BLOCKED: enterprise connector credentials are forbidden")
         if values.get("COMPANYAGENT_REAL_DATA_ENABLED", "false").lower() not in ("", "false", "0"):
             raise RuntimeError("CLOUD_SYNTHETIC_BLOCKED: real-data flag is forbidden")
+    # Railway demo is an additional *synthetic-only* hardening profile.
+    # It cannot be used to enable real data or production deployment.
+    if values.get("COMPANYAGENT_RAILWAY_PRIVATE_BACKEND", "").lower() in ("1", "true"):
+        if mode != "cloud_synthetic":
+            raise RuntimeError("RAILWAY_DEMO_BLOCKED: private backend must be cloud_synthetic")
+        if values.get("COMPANYAGENT_COOKIE_SECURE", "").lower() != "true":
+            raise RuntimeError("RAILWAY_DEMO_BLOCKED: Secure cookies are mandatory behind Railway HTTPS")
+        pwd = values.get("COMPANYAGENT_ADMIN_PASSWORD", "")
+        if len(pwd) < 20 or pwd.lower().startswith("replace") or pwd.startswith("CI-"):
+            raise RuntimeError("RAILWAY_DEMO_BLOCKED: configure an independent strong application password")
+        if values.get("HOST", "") not in ("0.0.0.0", "::"):
+            raise RuntimeError("RAILWAY_DEMO_BLOCKED: backend must bind the internal service network")
+        if values.get("PORT", "") != "8765":
+            raise RuntimeError("RAILWAY_DEMO_BLOCKED: internal service port must remain 8765")
     return {"mode": mode, "real_data_permitted": False, "production_ready": False}
 
 def forbidden_cloud_request(path, method="GET", env=None):

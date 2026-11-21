@@ -1,0 +1,24 @@
+# Railway edge terminates HTTPS; this proxy listens on internal HTTP :8080.
+# Only the gateway gets a generated *.up.railway.app public domain.
+# The backend MUST be named "companyagent" and have NO public domain.
+:8080 {
+    encode zstd gzip
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "no-referrer"
+        Cache-Control "no-store"
+        -Server
+    }
+    basic_auth {
+        {$RAILWAY_DEMO_USER} {$RAILWAY_DEMO_BCRYPT_HASH}
+    }
+    @unsafe path /api /api/* /enterprise/api/datasets/upload /enterprise/api/sources /enterprise/api/sources/* /enterprise/api/data/bridge/reconcile /enterprise/api/users
+    respond @unsafe 403
+    reverse_proxy http://companyagent.railway.internal:8765 {
+        transport http {
+            dial_timeout 5s
+            response_header_timeout 15s
+        }
+    }
+}
