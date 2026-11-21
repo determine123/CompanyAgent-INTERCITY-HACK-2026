@@ -108,7 +108,12 @@ def init():
             # Public demo uses REPOSITORY-OWNED FICTIONAL inventory only.
             # Never infer live stock, dates, or prices from this fixture.
             if os.getenv('COMPANYAGENT_DEPLOYMENT_MODE') == 'cloud_synthetic' and admin_id:
-                exists=c.execute('SELECT 1 FROM datasets WHERE kind=? LIMIT 1',('inventory',)).fetchone()
+                # Check our own seed provenance, not the presence of arbitrary
+                # enterprise/user inventories. Never overwrite other datasets.
+                exists=c.execute(
+                    'SELECT 1 FROM datasets WHERE kind=? AND origin=? LIMIT 1',
+                    ('inventory','demo_synthetic_repo_seed'),
+                ).fetchone()
                 if not exists:
                     from src.ingest import rows_from_bytes, parse_inventory
                     seed=Path(__file__).resolve().parents[1]/'data'/'demo_inventory.csv'

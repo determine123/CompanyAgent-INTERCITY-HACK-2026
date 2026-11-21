@@ -275,6 +275,10 @@ app.mount("/enterprise", StaticFiles(directory=ROOT/"enterprise_web", html=True)
 
 @app.on_event("startup")
 def enterprise_startup():
+    # On every actual process boot, recover a missing *fictional* demo dataset,
+    # even when a different inventory dataset already exists. No external API.
+    if deployment_mode() == "cloud_synthetic":
+        enterprise_init()
     background_sync()
 
 app.mount("/", StaticFiles(directory=ROOT/"web",html=True),name="web")
