@@ -23,5 +23,21 @@ jobs:
             (Resolve-Path scripts/accept_tokendance.ps1).Path,
             [ref]$tokens, [ref]$parseErrors) | Out-Null
           if ($parseErrors.Count -gt 0) { throw 'TokenDance PowerShell launcher has a syntax error' }
+      - name: Gate review must reject unapproved production
+        shell: bash
+        run: |
+          set +e
+          python scripts/review_migration_gates.py deploy/approval-manifest.example.json > /tmp/blocked-gate.json
+          exit_code=$?
+          set -e
+          test "$exit_code" -eq 2
+          python - <<'PY'
+          import json
+          x=json.load(open('/tmp/blocked-gate.json',encoding='utf-8'))
+          assert x['review_state']=='blocked'
+          assert x['deployment_permitted'] is False
+          assert x['production_cutover_permitted'] is False
+          print('PRODUCTION_GATE_DENIED=PASS')
+          PY
       - name: Run public smoke test
         run: python -m pytest -q
