@@ -1,0 +1,85 @@
+name: TokenDance LIVE Tool Calling (synthetic only)
+
+on:
+  workflow_dispatch:
+    inputs:
+      model:
+        description: "TokenDance Chat Completions model ID; must support tools"
+        required: true
+        default: "deepseek-v3.2"
+        type: string
+  push:
+    branches:
+      - feat/cloud-tokendance-acceptance
+    paths:
+      - .github/workflows/tokendance-live.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: tokendance-live-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  live-tool-acceptance:
+    name: Real provider, synthetic aggregates only
+    runs-on: ubuntu-latest
+    timeout-minutes: 8
+    env:
+      TOKENDANCE_API_KEY: ${{ secrets.TOKENDANCE_API_KEY }}
+      TOKENDANCE_MODEL: ${{ inputs.model || vars.TOKENDANCE_MODEL || 'deepseek-v3.2' }}
+      COMPANYAGENT_MODEL_PROVIDER: tokendance
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Check encrypted Actions secret (never print it)
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${TOKENDANCE_API_KEY}" ]]; then
+            echo "::error title=BLOCKED - missing secret::Configure a newly rotated TOKENDANCE_API_KEY in Settings > Secrets and variables > Actions. No external request was made."
+            exit 1
+          fi
+          if [[ -z "${TOKENDANCE_MODEL}" ]]; then
+            echo "::error title=BLOCKED - missing model::Set TOKENDANCE_MODEL or choose an input model."
+            exit 1
+          fi
+          echo "Secret available: yes (value never logged). Synthetic-only live test is authorized."
+      - name: Checkout trusted CompanyAgent code
+        uses: actions/checkout@v4
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install runtime dependencies
+        run: python -m pip install -r requirements.txt
+      - name: Execute actual HTTPS bounded tool loop (not MockTransport)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/verify_tokendance_tool_calling.py --i-authorize-external-call > "$RUNNER_TEMP/tokendance-live-evidence.json" || {
+            echo "::error title=Live Tool Calling not verified::The synthetic probe failed; inspect the selected model, credits and provider-side logs. No company data was used."
+            exit 1
+          }
+          python - "$RUNNER_TEMP/tokendance-live-evidence.json" <<'PY'
+          import json, sys
+          from pathlib import Path
+          p = Path(sys.argv[1])
+          r = json.loads(p.read_text(encoding="utf-8"))
+          assert r["provider"] == "tokendance"
+          assert r["transport"] == "live_chat_completions_tool_calling"
+          assert r["verification_status"] == "tool_calls_executed"
+          assert r["tool_call_count"] >= 1
+          assert set(r["tools"]).issubset({"inspect_inventory", "inspect_coverage", "select_budget_scenario"})
+          assert r["non_mutating"] and not r["real_stock_verified"] and not r["company_private_data_sent"]
+          print("LIVE_ACCEPTANCE=PASS; provider=tokendance; actual_tool_calls=" + str(r["tool_call_count"]))
+          print("Tools=" + ",".join(r["tools"]))
+          PY
+      - name: Upload redacted evidence (no API key, no request body)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tokendance-synthetic-live-evidence
+          path: ${{ runner.temp }}/tokendance-live-evidence.json
+          retention-days: 7
+          if-no-files-found: error
