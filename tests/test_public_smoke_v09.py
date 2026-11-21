@@ -1,22 +1,8 @@
-"""Public package smoke tests: only synthetic demo dataset, no licensed handout files."""
+"""Public package smoke test using ONLY synthetic demo dataset."""
 import os
-import pathlib
-import sys
-import tempfile
-import secrets
-import shutil
-import atexit
 from fastapi.testclient import TestClient
-
-# A public smoke test must work without enterprise data or an operator-provided password.
-# Always use a throwaway local database, never overwrite a user's runtime.
-_test_runtime = tempfile.mkdtemp(prefix="companyagent-public-smoke-")
-atexit.register(lambda: shutil.rmtree(_test_runtime, ignore_errors=True))
-os.environ["COMPANYAGENT_RUNTIME_DIR"] = _test_runtime
-os.environ["COMPANYAGENT_ADMIN_PASSWORD"] = secrets.token_urlsafe(24)
-os.environ["COMPANYAGENT_AUTO_SYNC"] = "false"
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1]))
 from server import app
+
 
 def test_public_demo_and_problem_bootstrap():
     with TestClient(app) as c:

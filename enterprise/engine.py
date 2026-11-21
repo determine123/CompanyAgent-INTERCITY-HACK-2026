@@ -98,6 +98,11 @@ def perform(req,agent,skills,inventory,coverage,source_desc,prices=None,policy=N
             step('policy_guard','覆盖证据缺失，保持严格过滤，不能退化成无证据推荐','needs_review')
     params['records']=inventory
     plan=optimize_plan(params)
+    budget_variants={}
+    # Frozen comparable scenarios using identical data and policy.
+    for amount in sorted(set([100,200,500,float(params['budget_wan'])])):
+        key=str(int(amount)) if float(amount).is_integer() else str(amount)
+        budget_variants[key] = plan if amount==params['budget_wan'] else optimize_plan({**params,'budget_wan':amount})
     step('optimize_budget',f"筛选{plan['candidate_count']}个媒体候选，选中{plan['item_count']}项、{plan['unit_count']}个单元，参考计费{plan['spent_wan']}万")
     unsupported=sum(1 for r in plan['selected'] if not params['focus_landmark'] or params['focus_landmark'] not in (r.get('coverage_landmarks') or []))
     quality={'unsupported_selected':unsupported,'has_schedule_verified':False,'price_is_reference':bool(plan.get('is_reference_estimate')),'within_budget':plan['spent_wan'] <= params['budget_wan'],'has_candidates':plan['item_count']>0,'strict_coverage':bool(policy.get('strict_coverage'))}
@@ -118,7 +123,7 @@ def perform(req,agent,skills,inventory,coverage,source_desc,prices=None,policy=N
                    "调整预算后重新计算组合，不只是改页面数字。")
         step('explain_plan','已生成规则驱动的可解释方案；未调用外部大模型')
     else: rationale='预算及媒体组合由确定性优化器生成；本Agent未授权策略解读工具。'
-    return {'plan':plan,'brief_analysis':parsed,'trace':steps,'rationale':rationale,'alerts':suggestions,
+    return {'plan':plan,'budget_variants':budget_variants,'brief_analysis':parsed,'trace':steps,'rationale':rationale,'alerts':suggestions,
             'agent_policy_notes':[str(agent['instructions'])[:1200]]+[str(s['instructions'])[:1200] for s in skills],
             'execution':execution,'data_sources':source_desc,'mode':'tool_orchestrated_rule_agent',
             'ai_model_used':False,'quality':quality,'finished_at':now()}

@@ -1,4 +1,4 @@
-# CompanyAgent v0.9 — 问题驱动、自我迭代的企业 Agent 工作台
+# CompanyAgent v1.0 — 问题驱动、自我迭代的企业 Agent 工作台
 
 **INTERCITY HACK 湖州场 · AI+办公赛道 · company Agent**
 
@@ -23,6 +23,20 @@ Windows 也可以双击 `run_windows.bat`。浏览器打开：
 首次登录：用户名 `admin`；一次性随机密码保存在本机 `runtime/FIRST_LOGIN.txt`。首次成功登录后该文件自动删除，**请尽快修改密码**。程序默认只允许本机访问；不要未经安全加固将它暴露公网。
 
 原有交互广告提案页仍可在 `http://127.0.0.1:8765/` 打开。
+
+
+## v1.0 新增：从 Agent 方案到可审计的交付
+
+本版参考 Dify 的 Human-in-the-Loop、Agno 的评估和权限边界，以及 LangGraph 的可追溯执行理念，**自主实现**以下能力（不等于集成了这些框架）：
+
+- **质量门禁**：对所选媒体检测预算上限、明细合计、库存单位数量、目标地标覆盖证据，保留 `blocked / needs_review / demo_ready` 明确状态；只输出可核实的事实，不让 LLM 猜测库存和价格。
+- **人工演示审批**：管理员可批准/退回提案。审批绑定结果 SHA-256 快照；数据被改动则原批准自动失效。**审批仅针对比赛演示，绝不表示商业锁位、2027可售确认或正式报价**。
+- **冻结数据的三档重算**：一个 Agent Run 持久化 100 / 200 / 500 万元的独立优化结果；用户调整预算，真实更新媒体清单和金额。
+- **一键离线 HTML**：运行任务后点击「下载可交互 HTML 提案」；无需服务器，预算切换、数据来源和风险告知保存在单个 HTML 中。**真实数据导出的 HTML 可能包含媒体明细，不应未经授权公开。**
+
+推荐评委路径：`/enterprise/` → 创建个人 Agent/Skill → 运行任务 → 观察质量门禁 → 管理员审批演示 → 导出 HTML → 离线切换预算。公开示例 HTML：`docs/verification_v10/CompanyAgent_v1.0_Offline_Demo.html`（仅虚构数据）。
+
+**测试：**公开版新增 28 项完整后端回归（包含五行业 × 三档预算），本地 Chromium 还验证了离线 HTML 的预算/金额与媒体表格变化、桌面和手机布局；GitHub Actions 跑 Python 测试、Python 编译检查、前端 JS 语法校验。详见 `docs/V10_EVALUATION_AND_SECURITY.md`。
 
 ## 二、比赛期间优先演示
 
@@ -67,13 +81,13 @@ python -m pip install -r requirements-dev.txt
 python -m pytest -q
 ```
 
-此前队内完整赛事开发目录报告 **75 项后端测试通过**；**本公开源码仓库只提供可在虚构数据下运行的 smoke 测试**。迭代页面通过 **16 项 Chromium 浏览器交互测试**，包括员工自定义、对照实验、策略发布与回滚、手机布局。浏览器测试需要 `playwright` 和可用 Chromium，开发时可运行：
+此前队内完整赛事开发目录报告 **75 项后端测试通过**；**当前公开源码仓库新增了 28 项可复现的业务/权限/质量门禁测试**。迭代页面通过 **16 项 Chromium 浏览器交互测试**，包括员工自定义、对照实验、策略发布与回滚、手机布局。浏览器测试需要 `playwright` 和可用 Chromium，开发时可运行：
 
 ```bash
 python tests/browser_iteration_v09.py
 ```
 
-公开源码版因不含赛事参考文件，只附带不依赖私有数据的 smoke 测试。参赛队内版才适合复现商圈 13→12 项的具体对照数字。
+公开版 CI 不依赖赛事参考文件，包含完整合成数据回归；真实 2027 库存仍待企业授权核验。参赛队内版才适合复现商圈 13→12 项的具体对照数字。
 
 相关设计与局限：`docs/V09_PRODUCT_AND_SECURITY.md`。赛事实用一页纸：`docs/V09_ONE_PAGER.md`。
 

@@ -60,6 +60,10 @@ def init():
               CREATE TABLE IF NOT EXISTS audit(id INTEGER PRIMARY KEY,user_id INTEGER,action TEXT NOT NULL,
                  detail TEXT NOT NULL,created_at TEXT NOT NULL);
               CREATE TABLE IF NOT EXISTS skill_policies(skill_id INTEGER PRIMARY KEY, strict_coverage INTEGER NOT NULL DEFAULT 0, version INTEGER NOT NULL DEFAULT 1);
+              CREATE TABLE IF NOT EXISTS proposal_reviews(run_id INTEGER PRIMARY KEY,
+                 reviewer_id INTEGER NOT NULL,status TEXT NOT NULL,comment TEXT NOT NULL,
+                 snapshot_sha256 TEXT NOT NULL,reviewed_at TEXT NOT NULL,
+                 FOREIGN KEY(run_id) REFERENCES runs(id));
               CREATE TABLE IF NOT EXISTS task_feedback(id INTEGER PRIMARY KEY,run_id INTEGER NOT NULL,owner_id INTEGER NOT NULL,
                  score INTEGER NOT NULL,category TEXT NOT NULL,comment TEXT NOT NULL,created_at TEXT NOT NULL);
               CREATE TABLE IF NOT EXISTS improvements(id INTEGER PRIMARY KEY,run_id INTEGER NOT NULL,skill_id INTEGER NOT NULL,

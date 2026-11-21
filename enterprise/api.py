@@ -4,11 +4,13 @@ import hashlib,json,os,re,secrets,time,threading
 import httpx
 from pathlib import Path
 from fastapi import APIRouter,Request,HTTPException,UploadFile,File
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, HTMLResponse
 from pydantic import BaseModel,Field
 from .store import STATE,COOKIE,TOOLS,db,init,hashed,password_ok,actor,allowed,can_modify,audit,now,safe_json
 from .dataflows import ingest,poll_folder,approved_url,pull_source
 from .engine import perform, choose_params
+from .quality import assess_result
+from .proposal import render_proposal
 
 router=APIRouter(prefix='/enterprise/api',tags=['Enterprise Agent Hub'])
 
@@ -49,6 +51,10 @@ class Task(BaseModel):
     coverage_only:bool=True
     inventory_dataset_id:int|None=None
     coverage_dataset_id:int|None=None
+class ProposalDecision(BaseModel):
+    decision:str
+    comment:str=Field(default="",max_length=500)
+
 class Source(BaseModel):
     name:str=Field(min_length=2,max_length=90)
     kind:str
@@ -323,6 +329,7 @@ def run_task(request:Request,data:Task):
     except ValueError as exc:raise HTTPException(400,str(exc)) from exc
     result['input_dataset_ids']={'inventory':ds['id'],'coverage':cs['id'] if cs else None,'pricing':ps['id'] if ps else None}
     result['skill_policy']=effective_policy
+    result['quality_report']=assess_result(result)
     with db() as c:
         cur=c.execute('INSERT INTO runs(owner_id,agent_id,request_json,result_json,status,created_at) VALUES(?,?,?,?,?,?)',
              (who['id'],data.agent_id,safe_json(data.model_dump()),safe_json(result),'completed',now()))
@@ -330,6 +337,76 @@ def run_task(request:Request,data:Task):
     from .iteration import auto_suggest
     suggestion=auto_suggest(cur.lastrowid,who['id'],skill_rows,result)
     return {'run_id':cur.lastrowid,'agent_name':ag['name'],'improvement_hint':suggestion,**result}
+
+def _run_for_view(run_id:int,who):
+    with db() as c:
+        row=c.execute('SELECT * FROM runs WHERE id=?',(run_id,)).fetchone()
+    if not row or (who['role']!='admin' and row['owner_id']!=who['id']):
+        raise HTTPException(404,'任务不存在或无权查看')
+    return row
+
+
+def _review_info(c,run_id:int,result:dict):
+    existing=c.execute('SELECT * FROM proposal_reviews WHERE run_id=?',(run_id,)).fetchone()
+    sha=hashlib.sha256(safe_json(result).encode('utf-8')).hexdigest()
+    if not existing:
+        return {'status':'pending','comment':'尚未由管理员审核','snapshot_sha256':sha}
+    if existing['snapshot_sha256']!=sha:
+        return {'status':'stale','comment':'结果快照发生变化，原审批失效','snapshot_sha256':sha}
+    return {'status':existing['status'],'comment':existing['comment'],
+            'reviewer_id':existing['reviewer_id'],'reviewed_at':existing['reviewed_at'],
+            'snapshot_sha256':sha}
+
+
+@router.get('/runs/{run_id}/quality')
+def quality_for_run(run_id:int,request:Request):
+    who=req_actor(request)
+    row=_run_for_view(run_id,who)
+    result=json.loads(row['result_json'])
+    with db() as c:review=_review_info(c,run_id,result)
+    return {'run_id':run_id,'quality':assess_result(result),'review':review}
+
+
+@router.post('/runs/{run_id}/review')
+def review_run(run_id:int,request:Request,data:ProposalDecision):
+    who=req_actor(request)
+    require_admin(who)  # No implicit access to employee/private runs for managers.
+    if data.decision not in ('approve','reject'):
+        raise HTTPException(400,'审核操作只能 approve/reject')
+    row=_run_for_view(run_id,who)
+    result=json.loads(row['result_json'])
+    quality=assess_result(result)
+    if data.decision=='approve' and not quality['demo_approvable']:
+        raise HTTPException(409,'质量门禁存在阻断项，不允许批准演示')
+    status='approved' if data.decision=='approve' else 'rejected'
+    checksum=hashlib.sha256(safe_json(result).encode('utf-8')).hexdigest()
+    with db() as c:
+        c.execute('INSERT INTO proposal_reviews(run_id,reviewer_id,status,comment,snapshot_sha256,reviewed_at) '
+                  'VALUES(?,?,?,?,?,?) ON CONFLICT(run_id) DO UPDATE SET '
+                  'reviewer_id=excluded.reviewer_id,status=excluded.status, '
+                  'comment=excluded.comment,snapshot_sha256=excluded.snapshot_sha256, '
+                  'reviewed_at=excluded.reviewed_at',
+                  (run_id,who['id'],status,data.comment.strip(),checksum,now()))
+    audit(who['id'],'proposal_demo_review',f'Run#{run_id} {status} [not commercial booking]')
+    return {'run_id':run_id,'status':status,'quality':quality,
+            'note':'仅批准比赛演示；不构成2027库存锁定或正式报价'}
+
+
+@router.get('/runs/{run_id}/proposal.html')
+def export_run_proposal(run_id:int,request:Request):
+    who=req_actor(request)
+    row=_run_for_view(run_id,who)
+    req=json.loads(row['request_json']);result=json.loads(row['result_json'])
+    quality=assess_result(result)
+    with db() as c:review=_review_info(c,run_id,result)
+    body=render_proposal(run_id,req,result,quality,review)
+    audit(who['id'],'proposal_html_export',f'Run#{run_id}, review={review["status"]}')
+    return HTMLResponse(body,headers={
+        'Content-Disposition':f'attachment; filename="CompanyAgent_Run_{run_id}.html"',
+        'X-Content-Type-Options':'nosniff',
+        'Cache-Control':'private, no-store',
+        'Content-Security-Policy':"default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'"})
+
 
 @router.post('/brief/parse')
 def parse_natural_brief(request:Request,data:NaturalBrief):
