@@ -8,6 +8,9 @@ on:
       - 'enterprise/deployment_policy.py'
       - 'scripts/railway_synthetic_smoke.sh'
       - 'tests/test_railway_demo_v17.py'
+      - 'judge_site/**'
+      - 'enterprise/judge_preview.py'
+      - 'server.py'
       - '.github/workflows/railway-synthetic.yml'
   workflow_dispatch:
 

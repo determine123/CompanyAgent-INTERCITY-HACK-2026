@@ -15,5 +15,6 @@ jobs:
           node --check governance_site/core.js
           node --check governance_site/app.js
           node --check enterprise_web/app.js
+          node --check judge_site/app.js
       - name: Governance deterministic logic regression
         run: node --test governance_site/core.test.js

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>CompanyAgent · B1X 评委一键体验｜合成数据</title>
+  <link href="/judge/styles.css" rel="stylesheet">
+</head>
+<body>
+<header class="site-head">
+  <a class="brand" href="/judge/"><span class="star">✦</span> Company<span>Agent</span></a>
+  <nav><a href="#experience">交互体验</a><a href="#architecture">产品架构</a><a href="https://github.com/determine123/CompanyAgent-INTERCITY-HACK-2026" target="_blank" rel="noopener noreferrer">GitHub 源码 ↗</a></nav>
+</header>
+<main>
+  <section class="hero">
+    <div class="eyebrow"><i></i> INTERCITY HACK 2026 · AI+办公 · 新云传媒</div>
+    <h1>客户说需求。<br><em>Agent 用企业数据给方案。</em></h1>
+    <p class="lead">为户外媒体销售打造的 Agent 工作台：将食品饮料品牌的模糊 Brief 变成可审查的 Campaign 假设书，用受限工具查询授权数据、优化预算，并协同后续制作和审批。</p>
+    <div class="hero-actions"><a class="primary" href="#experience">▶ 立即体验合成案例</a><a class="quiet" href="/enterprise/">进入企业后台（需要登录） ↗</a></div>
+    <div class="guard"><b>安全演示</b> 这里不需要登录、不保存客户输入、不使用企业内部数据。后台仍受双层认证保护。真实红豆和可视化平台没有连接此演示。</div>
+  </section>
+  <section class="content" id="experience">
+    <div class="section-heading"><div class="eyebrow">STEP 01 · CUSTOMER BRIEF</div><h2>只需三个条件，立即看到选媒结果</h2><p>本页面只为评委展示算法能力。实际企业工作台支持七要素 Campaign、库存快照选择、技能复用和人工审查。</p></div>
+    <div class="two-column">
+      <article class="panel form-panel">
+        <div class="panel-head"><span class="serial">01</span><h3>客户投放需求</h3><span class="tag">食品饮料 · 固定行业</span></div>
+        <label for="brand">模拟品牌（只在本页显示）</label>
+        <input id="brand" maxlength="40" value="模拟饮料品牌 A" autocomplete="off">
+        <label for="goal">Campaign 主目标</label>
+        <select id="goal"><option>到店</option><option>认知</option><option>促销</option><option>拉新</option></select>
+        <p class="hint">目标属于待客户确认的 Brief 信息；当前选媒算法不会借此虚构人群触达或广告收益。</p>
+        <label for="budget">预算（实际重新调用同一套确定性优化器）</label>
+        <div class="budget-row" id="budgetOptions"><button type="button" data-budget="100">100 万</button><button type="button" class="active" data-budget="200">200 万</button><button type="button" data-budget="500">500 万</button></div>
+        <label for="medium">媒体偏好</label>
+        <select id="medium"><option value="both">公交车身 + 地铁出入口</option><option value="bus">仅公交</option><option value="metro">仅地铁</option></select>
+        <div class="field-note">示例档期：2027-05-01 起 4 周 · 上海 · 虚构库存</div>
+        <button class="submit" id="generate" type="button">✦ Agent 生成候选方案 <span>→</span></button>
+        <p class="footnote">无需 API Key。计算由 FastAPI 后端执行；前端没有伪造价格、点位数量或最优收益。</p>
+      </article>
+      <article class="panel output-panel">
+        <div class="panel-head"><span class="serial pale">02</span><h3>可解释参考方案</h3><span class="tag" id="status">待生成</span></div>
+        <div id="loading" class="empty-state">点击左侧按钮，使用版本仓库中的虚构库存运行预算优化。</div>
+        <div id="result" hidden>
+          <h3 class="proposal-title" id="planTitle"></h3>
+          <p class="hint">由真实后端确定性优化器根据固定示例数据计算；不声明达到数学全局最优。</p>
+          <div class="metrics">
+            <div><small>预算</small><b id="outBudget">—</b></div>
+            <div><small>参考使用</small><b id="outSpent">—</b></div>
+            <div><small>候选媒体</small><b id="outCount">—</b></div>
+          </div>
+          <div class="trace" id="source"></div>
+          <h4>候选媒介清单</h4>
+          <div class="table-wrap"><table><thead><tr><th>媒体</th><th>区域</th><th>数量</th><th>参考万元</th></tr></thead><tbody id="mediaRows"></tbody></table></div>
+          <h4>为什么这份方案还不能直接发给客户？</h4>
+          <div class="review" id="risks"></div>
+          <h4>接下来优先做什么</h4>
+          <div class="review" id="actions"></div>
+          <p class="caveat">⚑ 仅供功能演示：真实客户 Brief、商圈证明、未来档期、正式报价与实际广告效果均需企业核验。</p>
+        </div>
+      </article>
+    </div>
+  </section>
+  <section class="content" id="architecture">
+    <div class="section-heading"><div class="eyebrow">STEP 02 · WHAT MAKES IT AN ENTERPRISE AGENT</div><h2>不止生成一段 AI 文案</h2><p>真实产品在授权企业环境工作，这个游客入口只暴露虚构示例和确定性计算。</p></div>
+    <div class="feature-grid">
+      <article><span>01 / 数据</span><h3>库存与证据分离</h3><p>红豆公交/地铁只读接口需企业正式授权；可视化暂无 API，仅用批准的导出。每个数据集有来源指纹。</p></article>
+      <article><span>02 / 决策</span><h3>约束优化与证据审查</h3><p>100／200／500 万单独重算，记录预算约束、候选组合、九项提案证据门禁和人工待办。</p></article>
+      <article><span>03 / 组织</span><h3>历史需求 → Agent / Skill</h3><p>聚合业务目标与常见质量缺口，生成待审候选 Skill。员工明确批准才创建私有 Agent，不自动扩权。</p></article>
+    </div>
+  </section>
+</main>
+<footer><span>CompanyAgent · INTERCITY HACK 湖州场 · 公开合成数据体验</span><span>算法演示 ≠ 商务承诺 / 已锁位 / 已验证 ROI</span></footer>
+<script src="/judge/app.js"></script>
+</body></html>
