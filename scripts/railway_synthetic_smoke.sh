@@ -62,6 +62,23 @@ unsafe="$(curl -s -o /dev/null -w '%{http_code}' --user reviewer:"$fake_pass" "$
 ingest="$(curl -s -o /dev/null -w '%{http_code}' -X POST --user reviewer:"$fake_pass" "$base/enterprise/api/datasets/upload")"
 users="$(curl -s -o /dev/null -w '%{http_code}' -X POST --user reviewer:"$fake_pass" "$base/enterprise/api/users")"
 benchmark="$(curl -s -o /dev/null -w '%{http_code}' -X POST --user reviewer:"$fake_pass" "$base/enterprise/api/agents/1/benchmark")"
+# The anonymous judge surface must work, but never create a backend bypass.
+guest_page="$(curl -s -o "$tmp/judge-page.html" -w '%{http_code}' "$base/judge/")"
+guest_api="$(curl -s -o "$tmp/judge-plan.json" -w '%{http_code}' "$base/judge/api/plan?budget_wan=200&medium=both")"
+guest_private="$(curl -s -o /dev/null -w '%{http_code}' "$base/enterprise/api/status")"
+guest_old="$(curl -s -o /dev/null -w '%{http_code}' "$base/api/demo")"
+guest_post="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/judge/api/plan")"
+test "$guest_page" = 200 && test "$guest_api" = 200
+test "$guest_private" = 401 && { test "$guest_old" = 401 || test "$guest_old" = 403; } && test "$guest_post" = 405
+grep -q '无需登录' "$tmp/judge-page.html"
+python - "$tmp/judge-plan.json" <<'PY'
+import json,sys
+d=json.load(open(sys.argv[1],encoding='utf-8'))
+assert d["synthetic_only"] and not d["real_hongdou_connected"]
+assert d["budget_wan"]==200 and d["spent_wan"]<=200
+assert d["sample_size"]==80
+assert not d["evidence"]["future_inventory_available"] and not d["evidence"]["booked"]
+PY
 test "$anon" = 401 && test "$wrong" = 401
 test "$unsafe" = 403 && test "$ingest" = 403 && test "$users" = 403 && test "$benchmark" = 403
 test -z "$(docker port "$app")"

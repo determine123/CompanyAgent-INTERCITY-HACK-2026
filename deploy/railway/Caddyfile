@@ -10,7 +10,12 @@
         Cache-Control "no-store"
         -Server
     }
-    basic_auth {
+    # Anonymous judge preview is ONLY /judge/* backed by fixed fictional CSV.
+    # Keep all enterprise APIs, the login surface, and /healthz under Basic Auth.
+    @protected {
+        not path /judge /judge/*
+    }
+    basic_auth @protected {
         {$RAILWAY_DEMO_USER} {$RAILWAY_DEMO_BCRYPT_HASH}
     }
     @unsafe path /api /api/* /enterprise/api/datasets/upload /enterprise/api/sources /enterprise/api/sources/* /enterprise/api/data/bridge/reconcile /enterprise/api/users

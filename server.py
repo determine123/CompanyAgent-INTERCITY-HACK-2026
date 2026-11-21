@@ -270,6 +270,18 @@ enterprise_seed()
 app.include_router(enterprise_router)
 app.include_router(improvement_router)
 app.include_router(failure_router)
+# Stateless public judge API: explicit 9-input allowlist, no cookies/DB/enterprise auth.
+# Only the cloud_synthetic deployment exposes this read-only fictional preview.
+@app.get("/judge/api/plan")
+def judge_plan(budget_wan:int=200,medium:str='both'):
+    if budget_wan not in (100,200,500) or medium not in ('both','bus','metro'):
+        raise HTTPException(422,'仅允许100/200/500万及公交/地铁/组合模式')
+    if deployment_mode()!='cloud_synthetic':
+        raise HTTPException(404,'公开评委预览仅限合成演示部署')
+    from enterprise.judge_preview import preview
+    return preview(budget_wan,medium)
+
+app.mount("/judge", StaticFiles(directory=ROOT/"judge_site",html=True),name="judge")
 app.mount("/governance", StaticFiles(directory=ROOT/"governance_site", html=True), name="governance")
 app.mount("/enterprise", StaticFiles(directory=ROOT/"enterprise_web", html=True), name="enterprise")
 

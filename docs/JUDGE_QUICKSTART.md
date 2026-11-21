@@ -1,6 +1,15 @@
 # CompanyAgent — B1X 评委快速启动指南
 
-这是 INTERCITY HACK 湖州场 AI+办公赛道的 **CompanyAgent v0.9 公开评审版**。
+这是 INTERCITY HACK 湖州场 AI+办公赛道的 **CompanyAgent v2.3 公开评审版**。
+
+## 评委零门槛体验（无需网关或企业账号）
+
+https://companyagent-intercity-hack-2026-production.up.railway.app/judge/
+
+仅加载版本仓库自带的 80 条虚构媒体数据，并调用相同的确定性优化器。支持切换预算和公交/地铁，展示三项风险与人工核验工作。该路径不访问企业数据库、不自动发邮件或锁位。
+
+B1X 提交字段、演讲词见 `docs/B1X_SUBMISSION_V23.md`。
+
 
 ## 运行与演示
 
