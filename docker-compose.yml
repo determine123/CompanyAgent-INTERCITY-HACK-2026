@@ -1,0 +1,14 @@
+services:
+  companyagent:
+    build: .
+    environment:
+      HOST: "0.0.0.0"
+      PORT: "8765"
+      COMPANYAGENT_RUNTIME_DIR: "/app/runtime"
+      COMPANYAGENT_AUTO_SYNC: "false"
+      COMPANYAGENT_ALLOWED_DATA_HOSTS: ""
+    ports:
+      - "127.0.0.1:8765:8765"
+    volumes:
+      - ./runtime:/app/runtime
+    restart: unless-stopped
