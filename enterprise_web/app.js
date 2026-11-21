@@ -44,7 +44,7 @@ async function createSource(){try{const data={name:$('sourceName').value,kind:$(
 async function refreshAudit(){try{const [r,a,u]=await Promise.all([api('/runs'),api('/audit'),api('/users')]);$('runHistory').innerHTML=r.items.map(x=>`<article class="asset"><h3>Run #${x.id} · ${E(x.brand||'客户')}</h3><p>参考${x.spent_wan}万 · 选中${x.item_count}项 · ${E(x.created_at)}</p><button class="tiny-btn" data-open-run="${x.id}">查看执行记录</button></article>`).join('')||'<p class="micro">尚无任务执行历史</p>';$('auditList').innerHTML=a.items.map(x=>`<article class="asset"><h3>${E(x.action)}</h3><p>${E(x.detail)} · ${E(x.created_at)}</p></article>`).join('')||'<p class="micro">暂无审计记录</p>';$('adminPanel').classList.toggle('hidden',state.user.role!=='admin');$('userList').innerHTML=u.items.map(x=>`<article class="asset"><h3>${E(x.display)} · ${E(x.username)}</h3><p>${E(x.role)} · ${E(x.created_at)}</p></article>`).join('')}catch(e){toast(e.message)}}
 async function createUser(){try{const r=await api('/users','POST',{username:$('newUser').value.trim(),display:$('newDisplay').value.trim(),role:$('newRole').value});$('newUserCred').classList.remove('hidden');$('newUserCred').textContent=`新账号：${r.username}；一次性初始密码：${r.initial_password}。请安全转交员工，立即更改。此处不再重复显示。`;await refreshAudit();toast('已创建员工账号')}catch(e){toast(e.message)}}
 async function refreshStatus(){try{const s=await api('/status');for(let field of ['agents','skills','datasets','runs'])$('stat'+field[0].toUpperCase()+field.slice(1)).textContent=s.counts[field]}catch(e){}}
-async function bootstrap(){try{const me=await api('/me');state.csrf=me.csrf;state.user=me.user;$('loginCover').classList.add('hidden');$('userLabel').textContent=me.user.display;$('roleLabel').textContent=me.user.role;$('avatar').textContent=me.user.display.slice(0,1);await Promise.all([refreshAssets(),refreshStatus()]);setBudget(200);try{const cfg=await api('/status');$('clientModelStatus').textContent=cfg.model_configured?'服务端已配置模型密钥；仍须单次授权并实际请求后才可算联调成功':'尚未配置 B1X 模型密钥；当前仅可使用确定性方案功能';}catch(e){}}catch(e){$('loginCover').classList.remove('hidden')}}
+async function bootstrap(){try{const me=await api('/me');state.csrf=me.csrf;state.user=me.user;$('loginCover').classList.add('hidden');$('userLabel').textContent=me.user.display;$('roleLabel').textContent=me.user.role;$('avatar').textContent=me.user.display.slice(0,1);await Promise.all([refreshAssets(),refreshStatus()]);setBudget(200);try{const cfg=await api('/status');$('clientModelStatus').textContent=cfg.tool_model_configured?('服务端已配置 '+cfg.tool_model_provider+' 受限 Tool Calling；仍须真实调用才能判定联调成功'):'尚未配置 '+cfg.tool_model_provider+' 受限模型密钥或模型 ID；确定性方案功能仍可用';}catch(e){}}catch(e){$('loginCover').classList.remove('hidden')}}
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();try{const r=await api('/auth/login','POST',{username:$('loginUser').value.trim(),password:$('loginPassword').value});state.csrf=r.csrf;await bootstrap();toast('欢迎进入企业 Agent 工作台')}catch(err){$('loginError').textContent=err.message}});
 async function refreshProposalReview(){
  if(!state.lastRun?.run_id)return;
@@ -93,12 +93,15 @@ $('benchmarkAgent').onclick=async()=>{
 $('approveDemo').onclick=()=>decideDemo('approve');$('rejectDemo').onclick=()=>decideDemo('reject');
 $('modelToolCall').onclick=async()=>{
  if(!state.lastRun?.run_id){toast('请先完成一条媒体任务');return}
- if(!confirm('将行业、预算范围、覆盖/库存数量等汇总信息发送给 B1X 模型。不会发送媒体明细、原始 CSV、客户 Brief、地标名称和登录信息。确定授权本次调用吗？'))return;
+ const providerInfo=await api('/status').catch(()=>null);
+ if(!providerInfo?.tool_model_configured){toast('受限模型尚未配置密钥与模型 ID');return}
+ const providerLabel=providerInfo.tool_model_provider==='tokendance'?'TokenDance':'B1X';
+ if(!confirm('将行业、预算范围、覆盖/库存数量等汇总信息发送给 '+providerLabel+' 模型。不会发送媒体明细、原始 CSV、客户 Brief、地标名称和登录信息。确定授权本次调用吗？'))return;
  const b=$('modelToolCall');b.disabled=true;$('toolCallInfo').textContent='模型工具调用中（限制 4 轮、只读工具）…';
  try{const x=await api('/runs/'+state.lastRun.run_id+'/model-tools','POST',{external_consent:true,max_steps:4});
   const calls=x.executed_tools||[];
-  $('toolCallInfo').textContent=`B1X 模型 ${x.model} · 真正调用 ${calls.length} 次只读工具：${calls.map(c=>c.tool).join(' → ')||'未选择工具'}。选择参考方案：${x.selected_scenario?.budget_wan||'未选择'} 万；${x.summary||'模型未生成额外解释'}。正式报价与 2027 库存仍需核验。`;
-  toast('B1X 受限模型任务完成');
+  $('toolCallInfo').textContent=`${x.provider} 模型 ${x.model} · 实际返回 ${calls.length} 次只读工具调用：${calls.map(c=>c.tool).join(' → ')||'未选择工具'}。选择参考方案：${x.selected_scenario?.budget_wan||'未选择'} 万；${x.summary||'模型未生成额外解释'}。正式报价与 2027 库存仍需核验。`;
+  toast('受限模型调用完成；请检查执行轨迹');
  }catch(e){$('toolCallInfo').textContent='模型任务没有成功：'+e.message+'。已保留确定性原始提案；到自我迭代实验室查看诊断。';toast(e.message)}
  finally{b.disabled=false}
 };
@@ -214,11 +217,14 @@ $('clientExport').onclick=()=>{
 $('clientGoStudio').onclick=()=>show('studio');
 $('clientModel').onclick=async()=>{
  if(!state.lastRun?.run_id){toast('请先生成一份方案');return}
- if(!confirm('仅将行业、预算与媒体汇总数量发送给 B1X；不传客户 Brief、媒体明细或原始库存。授权本次真实模型调用？'))return;
+ const providerInfo=await api('/status').catch(()=>null);
+ if(!providerInfo?.tool_model_configured){toast('模型密钥或模型 ID 尚未配置');return}
+ const providerLabel=providerInfo.tool_model_provider==='tokendance'?'TokenDance':'B1X';
+ if(!confirm('仅将行业、预算与媒体汇总数量发送给 '+providerLabel+'；不传客户 Brief、媒体明细或原始库存。授权本次真实模型调用？'))return;
  const b=$('clientModel');b.disabled=true;
  try{
   const x=await api('/runs/'+state.lastRun.run_id+'/model-tools','POST',{external_consent:true,max_steps:4});
   $('clientModelOutput').classList.remove('hidden');
-  $('clientModelOutput').textContent='B1X '+x.model+' · '+x.executed_tools.length+' 次受限工具调用\n'+(x.summary||'模型没有附加解释')+'\n'+(x.selected_scenario?'选中参考预算：'+x.selected_scenario.budget_wan+'万元':'未选择参考预算')+'\n未确认2027档期或商业锁位';
+  $('clientModelOutput').textContent=x.provider+' '+x.model+' · '+x.executed_tools.length+' 次受限工具调用\n'+(x.summary||'模型没有附加解释')+'\n'+(x.selected_scenario?'选中参考预算：'+x.selected_scenario.budget_wan+'万元':'未选择参考预算')+'\n未确认2027档期或商业锁位';
  }catch(e){toast(e.message)}finally{b.disabled=false}
 };

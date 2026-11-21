@@ -9,6 +9,7 @@ from __future__ import annotations
 import json, os, re, httpx
 from decimal import Decimal, InvalidOperation
 from .store import now
+from .provider_config import resolve_provider
 
 ENDPOINT = 'https://token.b1x.work/v1/chat/completions'
 MODEL = 'deepseek-v4.1-flash-1017'
@@ -59,15 +60,23 @@ def _execute(name, args, result, allowed):
     return _scenario(result,args['budget_wan'])
 
 
-def run_model_tools(result, allowed, *, api_key=None, transport=None, max_steps=MAX_STEPS):
+def run_model_tools(result, allowed, *, api_key=None, transport=None, max_steps=MAX_STEPS, provider=None):
     """Perform real HTTPS calls when key supplied; tests inject httpx.MockTransport.
 
     Tool outputs are aggregate-only and strictly allowlisted. No raw rows or
     customer brief text leave the host. Model-provided content is NEVER used as
     an authority to approve offers, execute code, or change SQLite data.
     """
-    key = api_key if api_key is not None else os.getenv('B1X_API_KEY','')
-    if not key or not key.strip(): raise ModelError('未配置服务端 B1X_API_KEY，无法声称实时模型调用已执行')
+    try:
+        config = resolve_provider(provider=provider, api_key=api_key)
+    except ValueError as exc:
+        raise ModelError(str(exc)) from exc
+    key = config.api_key
+    if not key:
+        variable = 'B1X_API_KEY' if config.name == 'b1x' else 'TOKENDANCE_API_KEY'
+        raise ModelError(f'未配置服务端 {variable}，无法执行真实模型调用')
+    if not config.model:
+        raise ModelError('未配置 TOKENDANCE_MODEL：请选择已核验支持 Tool Calling 的模型')
     allowed=set(allowed) & TOOL_NAMES
     if not allowed:raise ModelError('当前 Agent/Skill 无授权模型工具')
     if not 1<=max_steps<=4:raise ModelError('工具调用轮数超出允许范围')
@@ -84,19 +93,19 @@ def run_model_tools(result, allowed, *, api_key=None, transport=None, max_steps=
         {'role':'user','content':json.dumps(prompt,ensure_ascii=False)}]
     tools=[t for t in TOOLS if t['function']['name'] in allowed]
     headers={'Authorization':'Bearer '+key.strip(),'Content-Type':'application/json'}
-    transcript=[]; chosen=None; output=''; steps=0
+    transcript=[]; chosen=None; output=''; steps=0; completed=False
     # The pinned HTTPS endpoint prevents LLM-supplied URLs, redirects or SSRF.
     with httpx.Client(timeout=httpx.Timeout(18.0),follow_redirects=False,trust_env=False,transport=transport) as client:
         for _ in range(max_steps):
-            payload={'model':MODEL,'messages':messages,'tools':tools,'tool_choice':'auto',
+            payload={'model':config.model,'messages':messages,'tools':tools,'tool_choice':'auto',
                      'parallel_tool_calls':False,'temperature':0.1,'max_tokens':550}
             try:
-                response=client.post(ENDPOINT,headers=headers,json=payload)
+                response=client.post(config.endpoint,headers=headers,json=payload)
                 response.raise_for_status()
                 data=response.json()
                 answer=data['choices'][0]['message']
             except (httpx.HTTPError,KeyError,IndexError,ValueError,TypeError) as exc:
-                raise ModelError('B1X Chat Completions 请求失败或返回格式不符合协议') from exc
+                raise ModelError('模型网关请求失败或返回格式不符合 Chat Completions 协议') from exc
             calls=answer.get('tool_calls') or []
             if not isinstance(calls,list) or len(calls)>1:
                 raise ModelError('仅允许每轮最多一次工具调用')
@@ -104,6 +113,7 @@ def run_model_tools(result, allowed, *, api_key=None, transport=None, max_steps=
                 content=answer.get('content') or ''
                 if not isinstance(content,str):raise ModelError('模型回答格式无效')
                 output=content[:1800]
+                completed=True
                 break
             call=calls[0]
             if not isinstance(call,dict) or not isinstance(call.get('id'),str) or len(call['id'])>128:
@@ -120,7 +130,11 @@ def run_model_tools(result, allowed, *, api_key=None, transport=None, max_steps=
             transcript.append({'step':steps,'tool':name,'args':args,'result':item,'status':'ok'})
             messages.append({'role':'assistant','content':None,'tool_calls':calls})
             messages.append({'role':'tool','tool_call_id':call['id'],'content':json.dumps(item,ensure_ascii=False)})
-    return {'provider':'B1X','model':MODEL,'mode':'live_chat_completions_tool_calling',
+    if not completed:
+        raise ModelError('模型未在限定轮数内返回终态回答；本次不计为工具调用验收成功')
+    return {'provider':config.name,'model':config.model,
+            'mode':'mock_transport' if transport is not None else 'live_chat_completions_tool_calling',
             'executed_tools':transcript,'selected_scenario':chosen,'summary':output,
-            'token_cost':'请在 B1X 控制台核对','created_at':now(),
+            'verification_status':'tool_calls_executed' if transcript else 'no_tool_calls',
+            'token_cost':'请在所选模型服务商控制台核对','created_at':now(),
             'safety':'仅限聚合只读工具；不发送库存明细、地标名称或客户Brief；不确认库存和正式报价'}
