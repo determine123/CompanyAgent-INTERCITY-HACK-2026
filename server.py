@@ -15,7 +15,7 @@ from src.coverage import parse_coverage, join_coverage, coverage_rows_from_bytes
 from src.preflight import assess
 
 ROOT = Path(__file__).resolve().parent
-app = FastAPI(title="CompanyAgent Hackathon MVP", version="0.9.0")
+app = FastAPI(title="CompanyAgent Hackathon MVP", version="1.2.0")
 
 class PlanInput(BaseModel):
     industry: str = "食品饮料"
@@ -50,7 +50,7 @@ class AiInput(BaseModel):
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "ai_enabled": bool(os.getenv("B1X_API_KEY")), "version":"1.1.0"}
+    return {"ok": True, "ai_enabled": bool(os.getenv("B1X_API_KEY")), "version":"1.2.0"}
 
 @app.get("/api/brief/sample")
 def sample_brief():
@@ -248,11 +248,13 @@ async def ai_strategy(data: AiInput):
 from enterprise.store import init as enterprise_init
 from enterprise.api import router as enterprise_router, background_sync
 from enterprise.iteration import router as improvement_router
+from enterprise.failure_learning import router as failure_router
 enterprise_init()
 from enterprise.seed import seed as enterprise_seed
 enterprise_seed()
 app.include_router(enterprise_router)
 app.include_router(improvement_router)
+app.include_router(failure_router)
 app.mount("/enterprise", StaticFiles(directory=ROOT/"enterprise_web", html=True), name="enterprise")
 
 @app.on_event("startup")

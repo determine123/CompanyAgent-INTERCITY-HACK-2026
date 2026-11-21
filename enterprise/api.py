@@ -12,7 +12,10 @@ from .engine import perform, choose_params
 from src.planning import INDUSTRIES
 from .quality import assess_result
 from .proposal import render_proposal
-from .reliability import create_manifest, evaluation, replay
+from .reliability import create_manifest, evaluation, replay, plan_fingerprint
+from .bridge import reconcile
+from .model_tools import run_model_tools, ModelError, MODEL as B1X_MODEL
+from .failure_learning import record_failure
 
 router=APIRouter(prefix='/enterprise/api',tags=['Enterprise Agent Hub'])
 
@@ -64,6 +67,15 @@ class BenchmarkRequest(BaseModel):
 class ProposalDecision(BaseModel):
     decision:str
     comment:str=Field(default="",max_length=500)
+
+class BridgeRequest(BaseModel):
+    inventory_dataset_id:int
+    coverage_dataset_id:int
+    landmark:str=Field(default='',max_length=90)
+
+class ToolCallingRequest(BaseModel):
+    external_consent:bool=False
+    max_steps:int=Field(default=4,ge=1,le=4)
 
 class Source(BaseModel):
     name:str=Field(min_length=2,max_length=90)
@@ -306,6 +318,64 @@ def folder_sync(request:Request):
     audit(who['id'],'folder_sync',str(len(out)))
     return {'items':out,'folder':str(STATE/'imports')}
 
+@router.post('/data/bridge/reconcile')
+def reconcile_authorized_data(request:Request,data:BridgeRequest):
+    """Read-only strict link between two specifically selected, authorized datasets."""
+    who=req_actor(request)
+    with db() as c:
+        i=c.execute('SELECT * FROM datasets WHERE id=? AND kind=?',(data.inventory_dataset_id,'inventory')).fetchone()
+        v=c.execute('SELECT * FROM datasets WHERE id=? AND kind=?',(data.coverage_dataset_id,'coverage')).fetchone()
+    if not allowed(i,who) or not allowed(v,who):raise HTTPException(403,'数据源不存在或当前员工无权读取')
+    report=reconcile(json.loads(i['records_json']),json.loads(v['records_json']),
+        landmark=data.landmark,inventory_origin=i['origin'],coverage_origin=v['origin'],
+        inventory_checksum=i['checksum'],coverage_checksum=v['checksum'])
+    audit(who['id'],'authorized_data_reconcile',f'inventory={i["id"]};coverage={v["id"]};hits={report["summary"]["filtered_matched_items"]}')
+    return report
+
+@router.post('/runs/{run_id}/model-tools')
+def bounded_tool_calling(request:Request,run_id:int,data:ToolCallingRequest):
+    """Model chooses read-only, aggregate-only tools; business result is immutable."""
+    who=req_actor(request)
+    run=_run_for_view(run_id,who)
+    if not data.external_consent:raise HTTPException(412,'必须明确同意仅将聚合数据发送给 B1X')
+    result=json.loads(run['result_json'])
+    # Tool grants come from the frozen run manifest, not from user-controlled input.
+    manifest=result.get('replay_manifest') or {}
+    if not manifest.get('skills'):raise HTTPException(409,'任务缺少冻结 Skill 权限快照')
+    if plan_fingerprint(result)!=manifest.get('plan_fingerprint'):
+        raise HTTPException(409,'原执行结果快照已经改变，拒绝基于不可信结果调用外部模型')
+    skill_tools=set()
+    for sk in manifest['skills']:
+        skill_tools.update(json.loads(sk['tools_json']))
+    grants=set()
+    if 'match_coverage' in skill_tools:grants.add('inspect_coverage')
+    if 'load_inventory' in skill_tools:grants.add('inspect_inventory')
+    if 'optimize_budget' in skill_tools:grants.add('select_budget_scenario')
+    try:
+        answer=run_model_tools(result,grants,max_steps=data.max_steps)
+    except ModelError as exc:
+        reason=str(exc)
+        # No secret or raw request is copied into failure metadata.
+        code='MODEL_NOT_CONFIGURED' if 'B1X_API_KEY' in reason else 'MODEL_TOOL_REJECTED'
+        sid=next((x['id'] for x in manifest['skills'] if x['id']),None)
+        fid=record_failure(who['id'],run['agent_id'],run_id,sid,code,reason)
+        audit(who['id'],'model_tool_failed',f'run={run_id};code={code};failure={fid}')
+        raise HTTPException(503 if code=='MODEL_NOT_CONFIGURED' else 502,reason) from exc
+    with db() as c:
+        cid=c.execute('INSERT INTO model_tool_runs(owner_id,run_id,trace_json,created_at) VALUES(?,?,?,?)',
+                      (who['id'],run_id,safe_json(answer),now())).lastrowid
+    audit(who['id'],'model_tool_success',f'run={run_id};call={cid};tools={len(answer["executed_tools"])}')
+    return {'model_call_id':cid,'run_id':run_id,**answer}
+
+@router.get('/runs/{run_id}/model-tools')
+def model_trace(request:Request,run_id:int):
+    who=req_actor(request)
+    _run_for_view(run_id,who)
+    with db() as c:
+        rows=c.execute('SELECT id,owner_id,trace_json,created_at FROM model_tool_runs WHERE run_id=? ORDER BY id DESC LIMIT 15',(run_id,)).fetchall()
+    return {'items':[{'id':r['id'],'trace':json.loads(r['trace_json']),'created_at':r['created_at']} for r in rows
+                     if who['role']=='admin' or r['owner_id']==who['id']]}
+
 @router.post('/runs')
 def run_task(request:Request,data:Task):
     who=req_actor(request)
@@ -322,7 +392,10 @@ def run_task(request:Request,data:Task):
         covers=c.execute('SELECT * FROM datasets WHERE kind=? ORDER BY id DESC',('coverage',)).fetchall()
         ds=next((d for d in inventories if allowed(d,who) and
                  (data.inventory_dataset_id is None or d['id']==data.inventory_dataset_id)),None)
-        if not ds: raise HTTPException(400,'没有可用的已授权库存数据，请先导入')
+        if not ds:
+            record_failure(who['id'],data.agent_id,None,None,'INVENTORY_DATA_MISSING',
+                           '当前用户没有可访问的授权库存快照；需人工导入或配置批准的只读接口')
+            raise HTTPException(400,'没有可用的已授权库存数据，请先导入')
         cs=next((d for d in covers if allowed(d,who) and
                  (data.coverage_dataset_id is None or d['id']==data.coverage_dataset_id)),None)
         ps=next((d for d in pricebooks if allowed(d,who)),None)
@@ -336,7 +409,11 @@ def run_task(request:Request,data:Task):
                               [r['id'] for r in skill_rows]).fetchall() if skill_rows else []
     effective_policy={'strict_coverage':any(bool(x['strict_coverage']) for x in policy_rows)}
     try: result=perform(data.model_dump(),ag,skill_rows,inventory,coverage,source_desc,prices,policy=effective_policy)
-    except ValueError as exc:raise HTTPException(400,str(exc)) from exc
+    except ValueError as exc:
+        own=next((sk for sk in skill_rows if sk['owner_id']==who['id']),None)
+        record_failure(who['id'],data.agent_id,None,own['id'] if own else None,
+                       'BUSINESS_EXECUTION_BLOCKED',str(exc)[:160])
+        raise HTTPException(400,str(exc)) from exc
     result['input_dataset_ids']={'inventory':ds['id'],'coverage':cs['id'] if cs else None,'pricing':ps['id'] if ps else None}
     result['skill_policy']=effective_policy
     result['quality_report']=assess_result(result)
@@ -352,7 +429,14 @@ def run_task(request:Request,data:Task):
     audit(who['id'],'agent_run',f"Agent#{data.agent_id} Run#{cur.lastrowid}")
     from .iteration import auto_suggest
     suggestion=auto_suggest(cur.lastrowid,who['id'],skill_rows,result)
-    return {'run_id':cur.lastrowid,'agent_name':ag['name'],'improvement_hint':suggestion,**result}
+    failure_id=None
+    if coverage and not any('match_coverage' in json.loads(sk['tools_json']) for sk in skill_rows):
+        own=next((sk for sk in skill_rows if sk['owner_id']==who['id']),None)
+        if own and result['quality']['unsupported_selected']:
+            failure_id=record_failure(who['id'],data.agent_id,cur.lastrowid,own['id'],
+                'COVERAGE_TOOL_NOT_GRANTED', '存在授权覆盖数据但 Skill 缺少读取工具，导致媒体推荐没有目标商圈证据', 'match_coverage')
+    return {'run_id':cur.lastrowid,'agent_name':ag['name'],'improvement_hint':suggestion,
+            'failure_improvement_id':failure_id,**result}
 
 def _run_for_view(run_id:int,who):
     with db() as c:

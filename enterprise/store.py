@@ -70,6 +70,15 @@ def init():
                  creator_id INTEGER NOT NULL,feedback_id INTEGER,kind TEXT NOT NULL,status TEXT NOT NULL,
                  reason TEXT NOT NULL,eval_json TEXT NOT NULL DEFAULT '{}',prior_policy_json TEXT NOT NULL DEFAULT '{}',
                  created_at TEXT NOT NULL,updated_at TEXT NOT NULL);
+              CREATE TABLE IF NOT EXISTS failure_cases(id INTEGER PRIMARY KEY,owner_id INTEGER NOT NULL,
+                 agent_id INTEGER NOT NULL,run_id INTEGER,skill_id INTEGER,code TEXT NOT NULL,
+                 reason TEXT NOT NULL,proposal_json TEXT NOT NULL,eval_json TEXT NOT NULL,
+                 status TEXT NOT NULL,prior_tools_json TEXT DEFAULT NULL,published_tools_json TEXT DEFAULT NULL,
+                 created_at TEXT NOT NULL);
+              CREATE TABLE IF NOT EXISTS model_tool_runs(id INTEGER PRIMARY KEY,owner_id INTEGER NOT NULL,
+                 run_id INTEGER NOT NULL,trace_json TEXT NOT NULL,created_at TEXT NOT NULL);
+              CREATE INDEX IF NOT EXISTS idx_failure_owner ON failure_cases(owner_id,id DESC);
+              CREATE INDEX IF NOT EXISTS idx_model_runs_owner ON model_tool_runs(owner_id,id DESC);
               CREATE INDEX IF NOT EXISTS idx_imp_creator ON improvements(creator_id,id DESC);
               CREATE INDEX IF NOT EXISTS idx_runs_user ON runs(owner_id, id DESC);
               CREATE INDEX IF NOT EXISTS idx_datasets_kind ON datasets(kind,id DESC);

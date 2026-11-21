@@ -16,6 +16,19 @@ def normalized(value: Any) -> str:
     return re.sub(r"\s+", "", unicodedata.normalize("NFKC", str(value or ""))).casefold()
 
 
+def canonical_media_key(value: Any) -> str:
+    """Exact comparison after a *narrow* known platform suffix normalization.
+
+    The export writes numbered bus routes as 961路 while Hongdou's archival
+    ledger often writes 961. Never strip internal tokens, line variants or
+    abbreviate numbers (961 is never 9610/9611).
+    """
+    key=normalized(value)
+    if re.fullmatch(r'(?:\d{1,4}|浦东\d{1,4}|虹桥枢纽\d{1,4})路',key):
+        return key[:-1]
+    return key
+
+
 def pick(row: dict, *keys: str) -> Any:
     values = {normalized(k): v for k, v in row.items()}
     for k in keys:
@@ -174,7 +187,7 @@ def join_coverage(inventory: list[dict], coverage: list[dict]) -> dict[str, Any]
     for pos, row in enumerate(inventory):
         typ = str(row.get("media_type", ""))
         for value in (row.get("media_name"), row.get("id")):
-            key = normalized(value)
+            key = canonical_media_key(value) if value==row.get("media_name") else normalized(value)
             if key:
                 index.setdefault((typ, key), set()).add(pos)
     matched_evidence: dict[int, list[dict]] = {}
@@ -184,7 +197,7 @@ def join_coverage(inventory: list[dict], coverage: list[dict]) -> dict[str, Any]
             unmatched += 1
             continue
         typ = c.get("media_type")
-        keys = [normalized(c.get("media_id")), normalized(c.get("media_name"))]
+        keys = [normalized(c.get("media_id")), canonical_media_key(c.get("media_name"))]
         possible: set[int] = set()
         for key in keys:
             if not key:
@@ -211,5 +224,5 @@ def join_coverage(inventory: list[dict], coverage: list[dict]) -> dict[str, Any]
         "matched_coverage_rows": sum(len(x) for x in matched_evidence.values()),
         "unmatched_coverage_rows": unmatched,
         "ambiguous_coverage_rows": ambiguous,
-        "warnings": ["只对严格匹配的媒体标记覆盖分析来源；不能据此推断真实客流、到店或2027可售性。"],
+        "warnings": ["媒体名称只作数字公交路线末尾「路」的受限规范化，再做完全相等匹配；歧义一律拒绝；不能据此推断真实客流、到店或2027可售性。"],
     }
