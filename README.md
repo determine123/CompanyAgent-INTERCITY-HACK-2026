@@ -7,6 +7,18 @@
 
 > 愿景：企业员工只需要描述要解决的问题，平台就能帮助搭建岗位 Agent/Skill、使用授权数据执行任务，并根据结果反馈持续改进。**先解决问题，再证明改进有效。**
 
+## v1.5 · 独立验收 / 受控企业数据接入 / 合成云端部署
+
+本轮新增 **fail-closed 预生产治理包**：
+
+- `COMPANYAGENT_DEPLOYMENT_MODE=cloud_synthetic` 下阻断旧版未认证 `/api/*`、企业数据上传/来源同步和桥接入口；拒绝模型 Key、企业连接令牌、自动同步和真实数据开关；`production` 模式拒绝启动，**不允许把本地原型当生产系统直接上线**。
+- GitHub 云端 Docker 合成沙箱：非 root、只读文件系统、tmpfs 临时状态、宿主端口仅回环绑定，并验证旧 API 和数据导入接口被 403 拒绝。此为 **GitHub Actions 的临时云端容器**，不是已部署 AWS 生产环境。
+- 企业数据来源/权限/校验离线预检：`enterprise/ingress_review.py` 只处理授权导出文件的 SHA-256、字段解析和记录数量，不持久化数据或调用外部模型；内网真实数据接入仍须先完成数据所有者与安全审批。
+- 迁移证据门禁：`enterprise/migration_gates.py` 将云合成、企业试点与最终生产切换分开；即使全部 JSON 自述项为 verified，也不能据此自动授权生产部署。
+- 安全验收计划与回滚矩阵：[v1.5 分阶段交付和门禁说明](docs/V15_CLOUD_DATA_GATES.md)。新镜像使用方式见 [cloud_synthetic README](deploy/cloud-synthetic/README.md)。
+
+**明确状态：企业生产 SSO、租户隔离、KMS、VPC、真实库存、IMDS 真实数据、OpenClaw 最终替换均尚未验收，原生产系统不切流。**
+
 ## GitHub Actions 云端 TokenDance 实网验收
 
 新增独立 **TokenDance LIVE Tool Calling (synthetic only)** 工作流，使用 GitHub **Repository Secret `TOKENDANCE_API_KEY`** 安全注入密钥（`workflow_dispatch` 手动选择支持 Tool Calling 的模型）。脚本只使用合成聚合数据，成功时生成 7 天有效的脱敏证据附件。**已在 GitHub 云端使用 TokenDance `glm-5.2` 通过真实 Tool Calling：3 个白名单只读工具调用，脱敏证据已上传**。见 [2026-11-21 实测验收记录](docs/TOKENDANCE_LIVE_VERIFIED_2026-11-21.md)；生产系统和真实企业数据仍未验收。
