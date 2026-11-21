@@ -1,0 +1,27 @@
+name: Railway public synthetic single-service gate
+on:
+  push:
+    branches:
+      - feat/railway-public-synthetic-demo
+    paths:
+      - Dockerfile
+      - deploy/railway/**
+      - scripts/railway_synthetic_smoke.sh
+      - .github/workflows/railway-synthetic.yml
+  pull_request:
+    paths:
+      - Dockerfile
+      - deploy/railway/**
+      - scripts/railway_synthetic_smoke.sh
+      - .github/workflows/railway-synthetic.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  railway-gateway:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Railway single-image localhost-only backend and synthetic auth boundaries
+        run: bash scripts/railway_synthetic_smoke.sh
