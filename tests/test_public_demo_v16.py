@@ -46,7 +46,8 @@ def test_public_synthetic_status_never_claims_real_api(synthetic_client):
 @pytest.mark.parametrize("path,method",[
     ("/api/demo","GET"),("/enterprise/api/datasets/upload","POST"),
     ("/enterprise/api/sources","POST"),("/enterprise/api/users","POST"),
-    ("/enterprise/api/sources/1/sync","POST")])
+    ("/enterprise/api/sources/1/sync","POST"),
+    ("/enterprise/api/agents/1/benchmark","POST")])
 def test_public_layer_rejects_legacy_ingress_and_user_provisioning(synthetic_client,path,method):
     r=synthetic_client.request(method,path)
     assert r.status_code==403
