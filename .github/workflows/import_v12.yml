@@ -1,0 +1,64 @@
+name: Verify and publish CompanyAgent v1.2
+on:
+  push:
+    paths:
+      - 'staging/CompanyAgent_v1.2_Public_Source.zip'
+permissions:
+  contents: write
+jobs:
+  verify_publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify complete public archive and extract
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path, PurePosixPath
+          import zipfile, hashlib
+          path=Path('staging/CompanyAgent_v1.2_Public_Source.zip')
+          expected='97a500e03e9cfec6dee4c8eb9c8d82cf7598637227174f25a1c9901ccecda55d'
+          actual=hashlib.sha256(path.read_bytes()).hexdigest()
+          assert actual==expected, f'SHA-256 failed: {actual}'
+          with zipfile.ZipFile(path) as z:
+              files=[i for i in z.infolist() if not i.is_dir()]
+              assert len(files)==65, f'Expected 65 reviewed files, got {len(files)}'
+              for item in files:
+                  parts=PurePosixPath(item.filename).parts
+                  assert len(parts)>1 and parts[0]=='CompanyAgent'
+                  assert all(part not in ('','.','..') for part in parts)
+                  dest=Path(*parts[1:])
+                  assert not dest.is_absolute() and not dest.is_symlink()
+                  dest.parent.mkdir(parents=True,exist_ok=True)
+                  dest.write_bytes(z.read(item))
+          print('Verified public archive hash and extracted 65 source files')
+          PY
+      - name: Install test dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Verify Python modules compile
+        run: python -m compileall -q server.py enterprise src
+      - name: Validate frontend JavaScript syntax
+        run: |
+          node --check enterprise_web/app.js
+          node --check web/app.js
+      - name: Run all public regression tests
+        run: python -m pytest -q
+      - name: Publish only if all previous steps passed
+        shell: bash
+        run: |
+          # Keep existing CI unchanged to avoid workflow permission escalation.
+          git show HEAD:.github/workflows/ci.yml > .github/workflows/ci.yml
+          rm -f .github/workflows/import_v12.yml
+          rm -rf staging
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: v1.2 bounded B1X tools, authorized data bridge, Skill failure experiments"
+          git push origin HEAD:main
