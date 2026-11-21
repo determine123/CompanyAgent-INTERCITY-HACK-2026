@@ -1,0 +1,16 @@
+.env
+__pycache__/
+.pytest_cache/
+*.pyc
+.DS_Store
+node_modules/
+data/contest_private/
+docs/cloud-test/
+docs/CompanyAgent_赛事参考方案_交互HTML*.html
+docs/SOURCE_MANIFEST.json
+runtime/
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+**/FIRST_LOGIN.txt
+.env.*.local
