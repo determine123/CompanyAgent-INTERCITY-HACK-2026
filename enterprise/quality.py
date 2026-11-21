@@ -62,6 +62,14 @@ def assess_result(result: dict) -> dict:
     warnings.append({'code':'NOT_BOOKED','message':'覆盖分析和库存窗口不构成实际锁位或商业承诺'})
     if not result.get('data_sources',{}).get('inventory'):
         warnings.append({'code':'SOURCE_UNKNOWN','message':'库存数据来源缺失'})
+    hypothesis=result.get('campaign_hypothesis') or {}
+    if not hypothesis.get('complete'):
+        missing=hypothesis.get('missing') or ['未记录 Campaign 七要素']
+        warnings.append({'code':'CAMPAIGN_HYPOTHESIS_INCOMPLETE',
+                         'message':'Campaign 假设书尚未完整：'+'、'.join(str(x) for x in missing[:7])})
+    else:
+        passes.append({'code':'CAMPAIGN_HYPOTHESIS_COMPLETE',
+                       'message':'七要素已填写，仍需客户确认及 KPI 证据核验'})
 
     # A proposal with blockers is not even safe to demonstrate. Other checks
     # are transparent caveats which an admin may approve for demo ONLY.
