@@ -105,6 +105,25 @@ def init():
                           (admin_id['id'],'广告智能提案 Agent','解析 Brief、选择媒体、核算预算、生成可审计建议',
                            '只能使用已授权输入和只读数据。商业报价、库存锁位必须人工确认。',json.dumps([sid]),'team',now()))
 
+            # Public demo uses REPOSITORY-OWNED FICTIONAL inventory only.
+            # Never infer live stock, dates, or prices from this fixture.
+            if os.getenv('COMPANYAGENT_DEPLOYMENT_MODE') == 'cloud_synthetic' and admin_id:
+                exists=c.execute('SELECT 1 FROM datasets WHERE kind=? LIMIT 1',('inventory',)).fetchone()
+                if not exists:
+                    from src.ingest import rows_from_bytes, parse_inventory
+                    seed=Path(__file__).resolve().parents[1]/'data'/'demo_inventory.csv'
+                    raw=seed.read_bytes()
+                    records=parse_inventory(rows_from_bytes(raw,seed.name),seed.name)['records']
+                    if not records or any(not str(x.get('source','')).startswith('DEMO-') for x in records):
+                        raise RuntimeError('CLOUD_SYNTHETIC_BLOCKED: demo seed provenance invalid')
+                    c.execute("""INSERT INTO datasets
+                        (owner_id,kind,name,origin,records_json,count,checksum,visibility,imported_at,source_id,notes)
+                        VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                        (admin_id['id'],'inventory','仅供演示：虚构公交/地铁库存',
+                         'demo_synthetic_repo_seed',safe_json(records),len(records),
+                         hashlib.sha256(raw).hexdigest(),'team',now(),None,
+                         '完全虚构合成数据；不表示真实红豆库存、可售、价格或合同档期。'))
+
 def actor(request:Request):
     token=request.cookies.get(COOKIE,'')
     if not token: raise HTTPException(401,'请先登录企业工作台')
