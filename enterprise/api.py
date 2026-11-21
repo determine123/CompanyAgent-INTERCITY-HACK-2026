@@ -16,6 +16,7 @@ from .reliability import create_manifest, evaluation, replay, plan_fingerprint
 from .bridge import reconcile
 from .model_tools import run_model_tools, ModelError, MODEL as B1X_MODEL
 from .failure_learning import record_failure
+from .change_workflow import analyze_change, CHANGE_TYPES
 
 router=APIRouter(prefix='/enterprise/api',tags=['Enterprise Agent Hub'])
 
@@ -67,6 +68,11 @@ class BenchmarkRequest(BaseModel):
 class ProposalDecision(BaseModel):
     decision:str
     comment:str=Field(default="",max_length=500)
+
+class ChangeRequest(BaseModel):
+    change_type:str
+    effective_date:str
+    note:str=Field(min_length=4,max_length=1000)
 
 class BridgeRequest(BaseModel):
     inventory_dataset_id:int
@@ -367,6 +373,20 @@ def bounded_tool_calling(request:Request,run_id:int,data:ToolCallingRequest):
     audit(who['id'],'model_tool_success',f'run={run_id};call={cid};tools={len(answer["executed_tools"])}')
     return {'model_call_id':cid,'run_id':run_id,**answer}
 
+@router.post('/runs/{run_id}/change-impact')
+def impact_of_change(run_id:int, request:Request, data:ChangeRequest):
+    """Generate an accountable change-worklist without altering a real schedule."""
+    who=req_actor(request)
+    run=_run_for_view(run_id,who)
+    result=json.loads(run['result_json'])
+    try:
+        report=analyze_change(result,kind=data.change_type,
+                              effective_date=data.effective_date,note=data.note)
+    except ValueError as exc:
+        raise HTTPException(400,str(exc)) from exc
+    audit(who['id'],'change_impact',f'run={run_id};type={data.change_type}')
+    return {'run_id':run_id,**report}
+
 @router.get('/runs/{run_id}/model-tools')
 def model_trace(request:Request,run_id:int):
     who=req_actor(request)
@@ -653,6 +673,7 @@ def status(request:Request):
         cnt={x:c.execute(f'SELECT COUNT(*) FROM {x}').fetchone()[0] for x in ['agents','skills','datasets','runs','users']}
     return {'counts':cnt,'import_folder':str(STATE/'imports'),'allowed_hosts':os.getenv('COMPANYAGENT_ALLOWED_DATA_HOSTS',''),
             'automated_sync':os.getenv('COMPANYAGENT_AUTO_SYNC')=='true',
+            'model_configured':bool(os.getenv('B1X_API_KEY','').strip()),
             'limits':['单组织本地MVP，不具备多租户隔离与单点登录','不自动绕过红豆或大数据平台验证码','2027实际可售需业务系统核验']}
 
 _daemon_started=False

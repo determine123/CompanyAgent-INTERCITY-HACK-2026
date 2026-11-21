@@ -5,9 +5,9 @@ const state={csrf:'',user:null,agents:[],skills:[],datasets:[],sources:[],lastRu
 const TOOLTITLES={brief_parse:'Brief 结构化解析',load_inventory:'加载授权库存',match_coverage:'覆盖证据精确匹配',optimize_budget:'预算确定性优化',review_risks:'人工核验风险清单',explain_plan:'生成可解释方案'};
 function toast(message){const el=$('toast');el.textContent=message;el.classList.remove('hidden');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.add('hidden'),3400)}
 async function api(path,method='GET',data){const headers={};if(method!=='GET')headers['X-CSRF-Token']=state.csrf;if(data!==undefined&&!(data instanceof FormData)){headers['Content-Type']='application/json';data=JSON.stringify(data)}let r;try{r=await fetch('/enterprise/api'+path,{method,headers,body:method==='GET'?undefined:data,credentials:'same-origin'})}catch(e){throw new Error('无法连接本地服务：'+e.message)}const content=await r.json().catch(()=>({}));if(!r.ok)throw new Error(typeof content.detail==='string'?content.detail:'服务器操作失败 '+r.status);return content}
-function show(page){state.page=page;document.querySelectorAll('.screen').forEach(x=>x.classList.toggle('active',x.id==='page-'+page));document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.page===page));$('crumb').textContent=({studio:'智能任务执行',agents:'我的 Agents',skills:'我的 Skills',datasets:'数据源中心',audit:'执行与审计',iteration:'自我迭代实验室'})[page];if(page==='audit')refreshAudit();if(page==='datasets')refreshData();if(page==='iteration'){refreshImprovements();loadFailureCases()}window.scrollTo({top:0,behavior:'smooth'})}
+function show(page){state.page=page;document.querySelectorAll('.screen').forEach(x=>x.classList.toggle('active',x.id==='page-'+page));document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.page===page));$('crumb').textContent=({studio:'智能任务执行',agents:'我的 Agents',skills:'我的 Skills',datasets:'数据源中心',audit:'执行与审计',iteration:'自我迭代实验室',client:'客户需求与方案'})[page];if(page==='audit')refreshAudit();if(page==='datasets')refreshData();if(page==='iteration'){refreshImprovements();loadFailureCases()}window.scrollTo({top:0,behavior:'smooth'})}
 function renderAsset(asset,type){const isOwner=asset.owner_id===state.user.id||state.user.role==='admin';const ident=type==='agent'?asset.skill_ids:asset.tools;let meta=type==='agent'?`已绑定 ${ident.length} 项 Skill`:`工具：${ident.map(t=>TOOLTITLES[t]||t).join('、')}`;return `<article class="asset"><h3>${E(asset.name)}</h3><p>${E(asset.description||'暂无业务说明')}</p><div class="asset-meta"><span>${asset.visibility==='team'?'企业共享':'仅个人'} · ${E(meta)}</span>${isOwner?`<button class="tiny-btn" data-edit-${type}="${asset.id}">编辑</button>`:''}</div></article>`}
-async function refreshAssets(){const [a,s]=await Promise.all([api('/agents'),api('/skills')]);state.agents=a.items;state.skills=s.items;$('agentList').innerHTML=a.items.map(x=>renderAsset(x,'agent')).join('')||'<p class="micro">暂无 Agent，左侧新建</p>';$('skillList').innerHTML=s.items.map(x=>renderAsset(x,'skill')).join('')||'<p class="micro">暂无 Skill，左侧新建</p>';$('agentCount').textContent=a.items.length+' 个';$('skillCount').textContent=s.items.length+' 个';$('taskAgent').innerHTML=a.items.map(x=>`<option value="${x.id}">${E(x.name)}</option>`).join('');$('agentSkillOptions').innerHTML=s.items.map(x=>`<label><input type="checkbox" value="${x.id}" class="select-agent-skill"><span>${E(x.name)}</span></label>`).join('');$('skillTools').innerHTML=s.supported_tools.map(x=>`<label><input type="checkbox" value="${E(x)}" class="select-skill-tool"><span>${E(TOOLTITLES[x]||x)}</span></label>`).join('')}
+async function refreshAssets(){const [a,s]=await Promise.all([api('/agents'),api('/skills')]);state.agents=a.items;state.skills=s.items;$('agentList').innerHTML=a.items.map(x=>renderAsset(x,'agent')).join('')||'<p class="micro">暂无 Agent，左侧新建</p>';$('skillList').innerHTML=s.items.map(x=>renderAsset(x,'skill')).join('')||'<p class="micro">暂无 Skill，左侧新建</p>';$('agentCount').textContent=a.items.length+' 个';$('skillCount').textContent=s.items.length+' 个';$('taskAgent').innerHTML=a.items.map(x=>`<option value="${x.id}">${E(x.name)}</option>`).join('');$('clientAgent').innerHTML=a.items.map(x=>`<option value="${x.id}">${E(x.name)}</option>`).join('');$('agentSkillOptions').innerHTML=s.items.map(x=>`<label><input type="checkbox" value="${x.id}" class="select-agent-skill"><span>${E(x.name)}</span></label>`).join('');$('skillTools').innerHTML=s.supported_tools.map(x=>`<label><input type="checkbox" value="${E(x)}" class="select-skill-tool"><span>${E(TOOLTITLES[x]||x)}</span></label>`).join('')}
 function resetAgent(){for(let id of ['agentEdit','agentName','agentDesc','agentInstructions'])$(id).value='';$('agentVisibility').value='private';document.querySelectorAll('.select-agent-skill').forEach(x=>x.checked=false)}
 function resetSkill(){for(let id of ['skillEdit','skillName','skillDesc','skillInstructions'])$(id).value='';$('skillVisibility').value='private';document.querySelectorAll('.select-skill-tool').forEach(x=>x.checked=false)}
 function collect(type){const isA=type==='agent';return {name:$(isA?'agentName':'skillName').value.trim(),description:$(isA?'agentDesc':'skillDesc').value.trim(),instructions:$(isA?'agentInstructions':'skillInstructions').value,visibility:$(isA?'agentVisibility':'skillVisibility').value,skill_ids:[...document.querySelectorAll('.select-agent-skill:checked')].map(x=>Number(x.value)),tools:[...document.querySelectorAll('.select-skill-tool:checked')].map(x=>x.value)}}
@@ -44,7 +44,7 @@ async function createSource(){try{const data={name:$('sourceName').value,kind:$(
 async function refreshAudit(){try{const [r,a,u]=await Promise.all([api('/runs'),api('/audit'),api('/users')]);$('runHistory').innerHTML=r.items.map(x=>`<article class="asset"><h3>Run #${x.id} · ${E(x.brand||'客户')}</h3><p>参考${x.spent_wan}万 · 选中${x.item_count}项 · ${E(x.created_at)}</p><button class="tiny-btn" data-open-run="${x.id}">查看执行记录</button></article>`).join('')||'<p class="micro">尚无任务执行历史</p>';$('auditList').innerHTML=a.items.map(x=>`<article class="asset"><h3>${E(x.action)}</h3><p>${E(x.detail)} · ${E(x.created_at)}</p></article>`).join('')||'<p class="micro">暂无审计记录</p>';$('adminPanel').classList.toggle('hidden',state.user.role!=='admin');$('userList').innerHTML=u.items.map(x=>`<article class="asset"><h3>${E(x.display)} · ${E(x.username)}</h3><p>${E(x.role)} · ${E(x.created_at)}</p></article>`).join('')}catch(e){toast(e.message)}}
 async function createUser(){try{const r=await api('/users','POST',{username:$('newUser').value.trim(),display:$('newDisplay').value.trim(),role:$('newRole').value});$('newUserCred').classList.remove('hidden');$('newUserCred').textContent=`新账号：${r.username}；一次性初始密码：${r.initial_password}。请安全转交员工，立即更改。此处不再重复显示。`;await refreshAudit();toast('已创建员工账号')}catch(e){toast(e.message)}}
 async function refreshStatus(){try{const s=await api('/status');for(let field of ['agents','skills','datasets','runs'])$('stat'+field[0].toUpperCase()+field.slice(1)).textContent=s.counts[field]}catch(e){}}
-async function bootstrap(){try{const me=await api('/me');state.csrf=me.csrf;state.user=me.user;$('loginCover').classList.add('hidden');$('userLabel').textContent=me.user.display;$('roleLabel').textContent=me.user.role;$('avatar').textContent=me.user.display.slice(0,1);await Promise.all([refreshAssets(),refreshStatus()]);setBudget(200)}catch(e){$('loginCover').classList.remove('hidden')}}
+async function bootstrap(){try{const me=await api('/me');state.csrf=me.csrf;state.user=me.user;$('loginCover').classList.add('hidden');$('userLabel').textContent=me.user.display;$('roleLabel').textContent=me.user.role;$('avatar').textContent=me.user.display.slice(0,1);await Promise.all([refreshAssets(),refreshStatus()]);setBudget(200);try{const cfg=await api('/status');$('clientModelStatus').textContent=cfg.model_configured?'服务端已配置模型密钥；仍须单次授权并实际请求后才可算联调成功':'尚未配置 B1X 模型密钥；当前仅可使用确定性方案功能';}catch(e){}}catch(e){$('loginCover').classList.remove('hidden')}}
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();try{const r=await api('/auth/login','POST',{username:$('loginUser').value.trim(),password:$('loginPassword').value});state.csrf=r.csrf;await bootstrap();toast('欢迎进入企业 Agent 工作台')}catch(err){$('loginError').textContent=err.message}});
 async function refreshProposalReview(){
  if(!state.lastRun?.run_id)return;
@@ -150,3 +150,75 @@ document.addEventListener('click',async ev=>{const b=ev.target.closest('[data-im
  }catch(e){toast(e.message)}finally{b.disabled=false}
 });
 bootstrap();
+
+
+// Competition customer-facing workflow: reuses the audited enterprise Agent Run.
+async function generateClientProposal(){
+ const b=$('clientGenerate');b.disabled=true;b.textContent='正在分析授权数据和预算约束…';
+ $('clientRunState').textContent='执行中';
+ try{
+  const payload={agent_id:Number($('clientAgent').value),
+   brief:$('clientBrief').value.trim(),brand:$('clientBrand').value.trim(),
+   industry:$('clientIndustry').value,budget_wan:Number($('clientBudget').value),
+   start_date:$('clientDate').value,weeks:Number($('clientWeeks').value),
+   landmark:$('clientPlace').value,medium:$('clientMedium').value,
+   coverage_only:$('clientCoverage').checked};
+  if(!payload.agent_id)throw new Error('请先选择有权使用的 Agent');
+  if(!payload.brand)throw new Error('请填写目标品牌');
+  if(!payload.brief)throw new Error('请填写客户 Brief');
+  if(!payload.start_date.startsWith('2027-'))throw new Error('投放档期必须为2027年');
+  const r=await api('/runs','POST',payload);
+  state.lastRun=r;
+  runHtml(r); // Same verified result is also visible in original task studio.
+  renderClientProposal(r);
+  refreshStatus();
+  toast('客户方案已生成：可查看质量和媒体依据');
+ }catch(err){$('clientRunState').textContent='执行未成功';toast(err.message)}
+ finally{b.disabled=false;b.innerHTML='✦ Agent 生成可验证方案 <span>→</span>'}
+}
+function renderClientProposal(r){
+ const p=r.plan||{},q=r.quality_report||{},rows=p.selected||[];
+ $('clientEmpty').classList.add('hidden');$('clientProposal').classList.remove('hidden');
+ $('clientRunState').textContent='Run #'+r.run_id+' · '+(q.status||'需复核');
+ $('clientTitle').textContent=(p.brand||'客户')+' · '+(p.focus_landmark||'上海')+'媒体投放提案';
+ $('clientIntro').textContent=r.rationale||'基于当前授权数据和规则给出参考候选';
+ $('clientSpent').textContent=(p.spent_wan??0)+' 万 / '+p.budget_wan+' 万';
+ $('clientCount').textContent=rows.length+' 项';
+ $('clientEvidence').textContent=(q.evidence?.coverage_pct??0)+'%';
+ $('clientRows').innerHTML=rows.slice(0,30).map(x=>`<tr><td>${E(x.media_name||x.id)}</td><td>${E(x.quantity)}</td><td>${E(x.line_total_wan)}</td><td>${E((x.coverage_landmarks||[]).join('、')||'待核验')}</td></tr>`).join('')||'<tr><td colspan="4">没有符合条件的媒体；请检查数据或筛选条件</td></tr>';
+ const warns=[...(q.blockers||[]),...(q.warnings||[])].map(x=>x.message);
+ $('clientWarnings').innerHTML=warns.map(x=>`<p>⚑ ${E(x)}</p>`).join('')||'<p>质量规则未发现问题；仍需人工确认商业条件。</p>';
+ $('clientModelOutput').classList.add('hidden');
+}
+async function analyzeClientChange(){
+ const run=state.lastRun?.run_id;if(!run){toast('先生成一份方案才能分析变更影响');return}
+ const b=$('changeAnalyze');b.disabled=true;
+ try{
+  const x=await api('/runs/'+run+'/change-impact','POST',{
+   change_type:$('changeType').value,effective_date:$('changeDate').value,note:$('changeNote').value.trim()});
+  $('changeResult').classList.remove('hidden');
+  $('changeTitle').textContent='变更来源：'+x.change_label+' · '+x.effective_date;
+  $('changeAffected').textContent='需重算或复核：'+x.affected_forms.join('、');
+  $('changeSteps').innerHTML=x.dependency_steps.map(t=>`<div class="change-step"><span class="change-index">${t.order}</span><div><b>${E(t.title)}</b><p>${E(t.detail)}</p><small>责任岗位：${E(t.owner)} · 待人工确认</small></div></div>`).join('');
+  $('changeWarnings').innerHTML=x.evidence_gaps.map(w=>`<p>⚑ ${E(w)}</p>`).join('');
+  $('changeNotice').textContent=x.customer_notice_draft+'\n'+x.limitations;
+  toast('影响分析已生成，未更改任何真实业务系统');
+ }catch(e){toast(e.message)}finally{b.disabled=false}
+}
+$('clientGenerate').onclick=generateClientProposal;
+$('changeAnalyze').onclick=analyzeClientChange;
+$('clientExport').onclick=()=>{
+ if(!state.lastRun?.run_id){toast('请先生成方案');return}
+ window.location.href='/enterprise/api/runs/'+state.lastRun.run_id+'/proposal.html';
+};
+$('clientGoStudio').onclick=()=>show('studio');
+$('clientModel').onclick=async()=>{
+ if(!state.lastRun?.run_id){toast('请先生成一份方案');return}
+ if(!confirm('仅将行业、预算与媒体汇总数量发送给 B1X；不传客户 Brief、媒体明细或原始库存。授权本次真实模型调用？'))return;
+ const b=$('clientModel');b.disabled=true;
+ try{
+  const x=await api('/runs/'+state.lastRun.run_id+'/model-tools','POST',{external_consent:true,max_steps:4});
+  $('clientModelOutput').classList.remove('hidden');
+  $('clientModelOutput').textContent='B1X '+x.model+' · '+x.executed_tools.length+' 次受限工具调用\n'+(x.summary||'模型没有附加解释')+'\n'+(x.selected_scenario?'选中参考预算：'+x.selected_scenario.budget_wan+'万元':'未选择参考预算')+'\n未确认2027档期或商业锁位';
+ }catch(e){toast(e.message)}finally{b.disabled=false}
+};

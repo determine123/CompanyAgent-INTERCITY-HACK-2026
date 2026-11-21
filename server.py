@@ -15,7 +15,7 @@ from src.coverage import parse_coverage, join_coverage, coverage_rows_from_bytes
 from src.preflight import assess
 
 ROOT = Path(__file__).resolve().parent
-app = FastAPI(title="CompanyAgent Hackathon MVP", version="1.2.0")
+app = FastAPI(title="CompanyAgent Hackathon MVP", version="1.3.0")
 
 class PlanInput(BaseModel):
     industry: str = "食品饮料"
@@ -50,7 +50,7 @@ class AiInput(BaseModel):
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "ai_enabled": bool(os.getenv("B1X_API_KEY")), "version":"1.2.0"}
+    return {"ok": True, "ai_enabled": bool(os.getenv("B1X_API_KEY")), "version":"1.3.0"}
 
 @app.get("/api/brief/sample")
 def sample_brief():
