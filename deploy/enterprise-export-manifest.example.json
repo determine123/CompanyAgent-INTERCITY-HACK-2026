@@ -1,0 +1,12 @@
+{
+  "kind": "inventory",
+  "sha256": "REPLACE_WITH_SHA256_FROM_LOCAL_FILE",
+  "classification": "internal",
+  "tenant": "TENANT-APPROVED-REF",
+  "purpose": "APPROVED-PILOT-ONLY",
+  "source_ref": "DATA-CATALOG-REF",
+  "data_owner_ticket": "DATA-OWNER-TICKET",
+  "security_ticket": "SECURITY-TICKET",
+  "retention_days": 7,
+  "model_export_allowed": false
+}
