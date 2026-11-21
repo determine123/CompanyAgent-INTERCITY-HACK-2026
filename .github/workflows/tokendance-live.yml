@@ -6,7 +6,7 @@ on:
       model:
         description: "TokenDance Chat Completions model ID; must support tools"
         required: true
-        default: "deepseek-v3.2"
+        default: "glm-5.2"
         type: string
   push:
     branches:
@@ -28,7 +28,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     env:
-      TOKENDANCE_MODEL: ${{ inputs.model || vars.TOKENDANCE_MODEL || 'deepseek-v3.2' }}
+      TOKENDANCE_MODEL: ${{ inputs.model || vars.TOKENDANCE_MODEL || 'glm-5.2' }}
       COMPANYAGENT_MODEL_PROVIDER: tokendance
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
