@@ -25,7 +25,8 @@ def render_proposal(run_id: int, req: dict, result: dict, quality: dict, review:
              'sources':result.get('data_sources',{}),'review':review,
              'generated_from_run':run_id,
              'campaign_hypothesis':result.get('campaign_hypothesis') or {},
-             'scenario_changes':result.get('scenario_changes') or []}
+             'scenario_changes':result.get('scenario_changes') or [],
+             'execution_handoff':result.get('execution') or {}}
     # Only data, not markup. JS uses textContent for all untrusted fields.
     data_json=json.dumps(payload,ensure_ascii=False,allow_nan=False).replace('<','\\u003c').replace('>','\\u003e').replace('&','\\u0026')
     title=html.escape(str(plan.get('brand') or '客户'))
@@ -58,6 +59,7 @@ th,td{{padding:11px 10px;border-bottom:1px solid var(--line);text-align:left}}th
 <div class="card section"><h2>预算 100 / 200 / 500 万元的增减方案</h2><div class="tablewrap"><table><thead><tr><th>预算</th><th>参考投入</th><th>媒体数 / 单元数</th><th>较上一档新增 / 减少单元</th></tr></thead><tbody id="scenarioRows"></tbody></table></div><p class="foot">所有档位使用同一份冻结数据分别运行预算优化；没有可比的真实人工工时基线，不能声称已实现成本节省。</p></div>
 <div class="card section"><h2>投放范围与证据状态</h2><div id="meta"></div><div id="review"></div><ul id="warnings"></ul></div>
 <div class="card section"><h2>可追溯媒体清单</h2><div class="tablewrap"><table><thead><tr><th>媒体 / 线路</th><th>类型</th><th>数量</th><th>参考金额（万元）</th><th>覆盖地标</th></tr></thead><tbody id="rows"></tbody></table></div></div>
+<div class="card section"><h2>交给运营的执行核验清单</h2><p class="foot">所有事项均为待核验任务，不是已下单、施工完成或已发送客户通知；正式合同条款与赔付标准以企业法务签署为准。</p><div class="tablewrap"><table><thead><tr><th>负责环节</th><th>操作与审核要点</th><th>状态</th></tr></thead><tbody id="executionRows"></tbody></table></div><ul id="executionWarnings"></ul></div>
 <div class="card section"><h2>数据来源</h2><ul id="sources"></ul></div><p class="foot">生成自 CompanyAgent Run #{run_id} 的冻结结果快照。独立 HTML 不包含 API 密钥，不请求远程接口；因其包含所选媒体明细，请仅向获授权的评委/客户分享。</p>
 </main><script type="application/json" id="payload">{data_json}</script><script>
 'use strict';const data=JSON.parse(document.getElementById('payload').textContent);const $=id=>document.getElementById(id);
@@ -67,6 +69,9 @@ text($('meta'),'行业：'+data.industry+' ｜ 目标地标：'+(data.landmark||
 text($('review'),'质量门禁：'+data.quality.status+' ｜ 覆盖证据：'+data.quality.evidence.matched_items+'/'+data.quality.evidence.total_items+'项 ｜ 演示审核：'+data.review.status);
 data.quality.warnings.forEach(x=>appendLi($('warnings'),x.message));data.quality.blockers.forEach(x=>appendLi($('warnings'),'【阻断】'+x.message));
 Object.entries(data.sources).forEach(([k,v])=>appendLi($('sources'),k+'：'+v));
+const execution=data.execution_handoff||{{}};
+for(const step of (execution.gates||[])){{const tr=document.createElement('tr');for(const val of [step.stage,step.action,step.status]){{text(tr.appendChild(document.createElement('td')),val)}}$('executionRows').appendChild(tr)}}
+for(const warning of (execution.warnings||[]))appendLi($('executionWarnings'),warning);
 const campaign=data.campaign_hypothesis||{{}};
 text($('hypothesisStatus'),(campaign.completed||0)+' / '+(campaign.required||7)+' 已填写；'+(campaign.complete?'待客户业务核验':'未填写要素需要客户确认'));
 for(const e of (campaign.elements||[])){{const row=document.createElement('tr');for(const val of [e.label,e.value,e.complete?'已填写 / 未核验':'待确认']){{text(row.appendChild(document.createElement('td')),val)}}$('hypothesisRows').appendChild(row)}}
