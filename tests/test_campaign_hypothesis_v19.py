@@ -114,6 +114,9 @@ def test_end_to_end_campaign_goal_saved_and_exported(auth):
     assert exported.status_code==200
     assert "目标人群" in exported.text
     assert "预算 100 / 200 / 500" in exported.text
+    assert "交给运营的执行核验清单" in exported.text
+    assert "executionRows" in exported.text
+    assert "误一补二" in exported.text
 
 def test_old_studio_runs_still_allowed_but_warn_for_missing_assumptions(auth):
     minimal={k:v for k,v in request_data().items()
