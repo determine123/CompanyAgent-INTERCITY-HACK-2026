@@ -93,7 +93,7 @@ def run_model_tools(result, allowed, *, api_key=None, transport=None, max_steps=
         {'role':'user','content':json.dumps(prompt,ensure_ascii=False)}]
     tools=[t for t in TOOLS if t['function']['name'] in allowed]
     headers={'Authorization':'Bearer '+key.strip(),'Content-Type':'application/json'}
-    transcript=[]; chosen=None; output=''; steps=0
+    transcript=[]; chosen=None; output=''; steps=0; completed=False
     # The pinned HTTPS endpoint prevents LLM-supplied URLs, redirects or SSRF.
     with httpx.Client(timeout=httpx.Timeout(18.0),follow_redirects=False,trust_env=False,transport=transport) as client:
         for _ in range(max_steps):
@@ -113,6 +113,7 @@ def run_model_tools(result, allowed, *, api_key=None, transport=None, max_steps=
                 content=answer.get('content') or ''
                 if not isinstance(content,str):raise ModelError('模型回答格式无效')
                 output=content[:1800]
+                completed=True
                 break
             call=calls[0]
             if not isinstance(call,dict) or not isinstance(call.get('id'),str) or len(call['id'])>128:
@@ -129,8 +130,11 @@ def run_model_tools(result, allowed, *, api_key=None, transport=None, max_steps=
             transcript.append({'step':steps,'tool':name,'args':args,'result':item,'status':'ok'})
             messages.append({'role':'assistant','content':None,'tool_calls':calls})
             messages.append({'role':'tool','tool_call_id':call['id'],'content':json.dumps(item,ensure_ascii=False)})
+    if not completed:
+        raise ModelError('模型未在限定轮数内返回终态回答；本次不计为工具调用验收成功')
     return {'provider':config.name,'model':config.model,
             'mode':'mock_transport' if transport is not None else 'live_chat_completions_tool_calling',
             'executed_tools':transcript,'selected_scenario':chosen,'summary':output,
+            'verification_status':'tool_calls_executed' if transcript else 'no_tool_calls',
             'token_cost':'请在所选模型服务商控制台核对','created_at':now(),
             'safety':'仅限聚合只读工具；不发送库存明细、地标名称或客户Brief；不确认库存和正式报价'}
