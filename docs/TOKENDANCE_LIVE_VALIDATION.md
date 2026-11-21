@@ -1,6 +1,6 @@
 # CompanyAgent v1.4 · TokenDance 受限 Tool Calling 联调手册
 
-> 2026-11-21；状态：**协议适配与合成数据回归已实现，真实 TokenDance API 联调尚未完成**。不能把 MockTransport 测试宣称为真实联调成功。
+> 2026-11-21；状态：**TokenDance `glm-5.2` 真实 GitHub 云端 Tool Calling 已通过，3 次只读工具调用，脱敏凭证已上传**。这是合成数据验收，不包括企业内部 API 或生产迁移；详见 [实网报告](TOKENDANCE_LIVE_VERIFIED_2026-11-21.md)。
 
 ## 1. 兑换与授权
 
@@ -81,8 +81,8 @@ python scripts/verify_tokendance_tool_calling.py --i-authorize-external-call
 | 服务端 TokenDance Provider 适配 | 已实现 |
 | 白名单工具协议和脱敏请求 | CI 合成数据测试 |
 | GitHub Actions 全套回归 | 以对应提交的实际运行记录为准 |
-| 兑换券入账、API Key 生成 | 未核实 |
-| 真实模型 Tool Calling | **未完成，须有效密钥与可联网的运行环境** |
+| 兑换券入账、API Key 生成 | Actions 已收到非空 Secret，兑换券是否入账未核实；已暴露的旧密钥须轮换 |
+| 真实模型 Tool Calling | **已通过合成数据云端验收：glm-5.2，3 次只读工具调用** |
 | 企业数据访问、真实上刊、内网联通 | 不在本次联调范围内 |
 
 ## 6. 真实联调失败时
