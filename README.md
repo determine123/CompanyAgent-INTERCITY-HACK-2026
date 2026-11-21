@@ -7,6 +7,14 @@
 
 > 愿景：企业员工只需要描述要解决的问题，平台就能帮助搭建岗位 Agent/Skill、使用授权数据执行任务，并根据结果反馈持续改进。**先解决问题，再证明改进有效。**
 
+## v1.4 · TokenDance 受限 Tool Calling（可选，需本人兑换与配置）
+
+- 新增固定地址 `https://tokendance.space/gateway/v1/chat/completions`，只能通过服务端 `COMPANYAGENT_MODEL_PROVIDER=tokendance` 启用；密钥与模型 ID 分别来自 `TOKENDANCE_API_KEY`、`TOKENDANCE_MODEL`，不提供任意自定义 URL。
+- 沿用冻结 Skill 权限、三个只读聚合工具、每次外发确认、最多四轮、拒绝越权和零业务写入；模型只返回文字时不当作 Tool Calling 验收成功。
+- **离线协议与安全测试不等于真实联调。** 兑换券须本人在 TokenDance 账户兑换并生成单独 API Key；目前未证实额度入账，也未完成实际公网模型调用。
+- 纯合成数据一键验收：`python scripts/verify_tokendance_tool_calling.py --i-authorize-external-call`，须先在本机配置密钥和支持 Tool Calling 的模型 ID。
+- 完整步骤与限制见 [TokenDance 联调手册](docs/TOKENDANCE_LIVE_VALIDATION.md)。旧的 B1X 文本解读接口仍独立保留。
+
 ## v1.3 新增：给客户的 AI 提案界面与排期变更协同
 
 - **客户需求与方案**：员工从新入口填写品牌、五行业、100/200/500 万预算、2027 档期、商圈和媒体；选择自己的 Agent 后，基于其授权数据生成可追溯的候选方案、证据和风险清单，并导出可交互 HTML。预算变更会重新运行工具，不是单纯改页面数字。
