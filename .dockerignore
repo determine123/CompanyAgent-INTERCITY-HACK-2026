@@ -18,3 +18,9 @@ docs/SOURCE_MANIFEST.json
 *.pem
 *.p12
 *.pfx
+
+# Public-demo secrets stay only on the operator machine, never in source or Docker images.
+deploy/public-demo/.env
+deploy/public-demo/.env.*.local
+**/.env
+**/.env.*.local
