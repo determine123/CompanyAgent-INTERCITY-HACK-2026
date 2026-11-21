@@ -11,6 +11,7 @@ on:
   push:
     branches:
       - feat/cloud-tokendance-acceptance
+      - feat/cloud-tokendance-diagnostics
     paths:
       - .github/workflows/tokendance-live.yml
 
@@ -61,7 +62,15 @@ jobs:
         run: |
           set -euo pipefail
           python scripts/verify_tokendance_tool_calling.py --i-authorize-external-call > "$RUNNER_TEMP/tokendance-live-evidence.json" || {
-            echo "::error title=Live Tool Calling not verified::The synthetic probe failed; inspect the selected model, credits and provider-side logs. No company data was used."
+            # The standalone probe prints only fixed, credential-free failure categories.
+            # Never print response bodies, prompt payloads, authorization headers or the actual key.
+            evidence="$RUNNER_TEMP/tokendance-live-evidence.json"
+            if [[ -f "$evidence" ]] && grep -Eq '^联调(失败|未通过)' "$evidence"; then
+              reason="$(head -n 1 "$evidence" | cut -c 1-260)"
+              echo "::error title=Live Tool Calling not verified::$reason"
+            else
+              echo "::error title=Live Tool Calling not verified::Synthetic probe crashed before a safe classification could be obtained."
+            fi
             exit 1
           }
           python - "$RUNNER_TEMP/tokendance-live-evidence.json" <<'PY'
