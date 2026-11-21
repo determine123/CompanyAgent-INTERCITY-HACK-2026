@@ -20,6 +20,7 @@ from .deployment_policy import deployment_mode
 from .failure_learning import record_failure
 from .change_workflow import analyze_change, CHANGE_TYPES
 from .impact_metrics import evaluate_pair
+from .demand_memory import summarize_runs, decision_brief, TEMPLATES, MAX_RUNS
 
 router=APIRouter(prefix='/enterprise/api',tags=['Enterprise Agent Hub'])
 
@@ -391,6 +392,99 @@ def bounded_tool_calling(request:Request,run_id:int,data:ToolCallingRequest):
                       (who['id'],run_id,safe_json(answer),now())).lastrowid
     audit(who['id'],'model_tool_success',f'run={run_id};call={cid};tools={len(answer["executed_tools"])}')
     return {'model_call_id':cid,'run_id':run_id,**answer}
+
+@router.get('/runs/{run_id}/decision-brief')
+def proposal_pre_review(run_id:int,request:Request):
+    """Honest Real-Monad-style three-risk pre-review on an authorized frozen Run."""
+    who=req_actor(request)
+    row=_run_for_view(run_id,who)
+    return {"run_id":run_id,**decision_brief(json.loads(row['result_json']))}
+
+
+def _authorized_demand_rows(who):
+    # Admin can see all in this ONE organization; staff only their own.
+    with db() as c:
+        return c.execute('SELECT id,created_at,request_json,result_json FROM runs '+
+                         ('' if who['role']=='admin' else 'WHERE owner_id=? ')+
+                         'ORDER BY id DESC LIMIT ?',
+                         ((MAX_RUNS,) if who['role']=='admin' else (who['id'],MAX_RUNS))).fetchall()
+
+
+@router.get('/insights')
+def demand_insights(request:Request):
+    who=req_actor(request)
+    report=summarize_runs(_authorized_demand_rows(who))
+    report['scope']='single_org_admin_recent' if who['role']=='admin' else 'self_runs_only'
+    return report
+
+
+@router.get('/insights/drafts')
+def list_demand_drafts(request:Request):
+    who=req_actor(request)
+    with db() as c:
+        rows=c.execute('SELECT id,kind,status,created_at,adopted_at,agent_id,skill_id,snapshot_json '
+                       'FROM demand_skill_drafts WHERE owner_id=? ORDER BY id DESC LIMIT 20',
+                       (who['id'],)).fetchall()
+    return {'items':[{'id':r['id'],'kind':r['kind'],'status':r['status'],
+                      'created_at':r['created_at'],'adopted_at':r['adopted_at'],
+                      'agent_id':r['agent_id'],'skill_id':r['skill_id'],
+                      'sample_size':json.loads(r['snapshot_json']).get('sample_size',0)}
+                     for r in rows]}
+
+
+@router.post('/insights/drafts')
+def prepare_demand_skill(request:Request):
+    """A template proposal, not a Skill publication. The user must explicitly adopt."""
+    who=req_actor(request)
+    summary=summarize_runs(_authorized_demand_rows(who))
+    if summary['sample_size']<1:
+        raise HTTPException(409,'请先用授权数据生成至少一份客户方案，才能归纳需求')
+    kind=summary['suggested_template']
+    template=TEMPLATES[kind]
+    with db() as c:
+        # Prevent unbounded draft spam by a single account.
+        count=c.execute('SELECT COUNT(*) FROM demand_skill_drafts WHERE owner_id=? AND status=?',
+                        (who['id'],'pending')).fetchone()[0]
+        if count>=10:raise HTTPException(429,'待审核模板已达10个，请先处理已有候选')
+        draft_id=c.execute('INSERT INTO demand_skill_drafts(owner_id,kind,snapshot_json,status,created_at) '
+                           'VALUES(?,?,?,?,?)',
+                           (who['id'],kind,safe_json(summary),'pending',now())).lastrowid
+    audit(who['id'],'demand_skill_draft',f'draft={draft_id};kind={kind};count={summary["sample_size"]}')
+    return {'draft_id':draft_id,'status':'pending','sample_size':summary['sample_size'],
+            'template':template,'human_approval_required':True,
+            'note':'只生成待批准模板，不授予工具权限或创建生产代码'}
+
+
+@router.post('/insights/drafts/{draft_id}/adopt')
+def adopt_demand_skill(request:Request,draft_id:int):
+    """User-approved private Agent+Skill; tools resolved from fixed allowlist."""
+    who=req_actor(request)
+    with db() as c:
+        draft=c.execute('SELECT * FROM demand_skill_drafts WHERE id=? AND owner_id=?',
+                        (draft_id,who['id'])).fetchone()
+        if not draft:raise HTTPException(404,'候选方案不存在或无权限')
+        if draft['status']!='pending':raise HTTPException(409,'候选已处理，拒绝重复创建')
+        template=TEMPLATES.get(draft['kind'])
+        if not template:raise HTTPException(409,'未知的候选模板')
+        tools=template['tools']
+        if not tools or any(name not in TOOLS for name in tools):
+            raise HTTPException(403,'候选工具不在平台允许列表内')
+        sid=c.execute('INSERT INTO skills(owner_id,name,description,instructions,tools_json,visibility,created_at) '
+                      'VALUES(?,?,?,?,?,?,?)',
+                      (who['id'],template['skill'],template['description'],template['policy'],
+                       safe_json(sorted(set(tools))),'private',now())).lastrowid
+        aid=c.execute('INSERT INTO agents(owner_id,name,description,instructions,skill_ids_json,visibility,created_at) '
+                      'VALUES(?,?,?,?,?,?,?)',
+                      (who['id'],template['title'],template['description'],template['policy'],
+                       safe_json([sid]),'private',now())).lastrowid
+        c.execute('UPDATE demand_skill_drafts SET status=?,adopted_at=?,agent_id=?,skill_id=? '
+                  'WHERE id=? AND owner_id=? AND status=?',
+                  ('adopted',now(),aid,sid,draft_id,who['id'],'pending'))
+    audit(who['id'],'demand_template_adopted',f'draft={draft_id};agent={aid};skill={sid}')
+    return {'ok':True,'draft_id':draft_id,'agent_id':aid,'skill_id':sid,
+            'visibility':'private','tools':tools,
+            'note':'员工人工批准后创建的私有 Agent/Skill，仅调用已审核工具；不代表在线发布或自动训练'}
+
 
 @router.post('/runs/{run_id}/impact-measurement')
 def save_impact_measurement(run_id:int,request:Request,data:ImpactMeasurement):
