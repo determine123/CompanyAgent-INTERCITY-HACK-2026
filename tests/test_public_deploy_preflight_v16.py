@@ -12,6 +12,7 @@ def fake_compose():
                 "environment":{
                     "COMPANYAGENT_DEPLOYMENT_MODE":"cloud_synthetic",
                     "COMPANYAGENT_AUTO_SYNC":"false",
+                    "COMPANYAGENT_COOKIE_SECURE":"true",
                     "COMPANYAGENT_REAL_DATA_ENABLED":"false",
                     "COMPANYAGENT_ALLOWED_DATA_HOSTS":"",
                     "COMPANYAGENT_ADMIN_PASSWORD":"synthetic-but-unique-app-password-ci"},
