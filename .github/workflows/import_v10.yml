@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'staging/CompanyAgent_v1.0_Enterprise_GitHub_Ready.zip'
+      - '.github/workflows/import_v10.yml'
 permissions:
   contents: write
 jobs:
@@ -46,6 +47,9 @@ jobs:
         run: python -m pytest -q
       - name: Publish only after every test passed
         run: |
+          # CI workflow updates require special GitHub App permissions.
+          # Keep the already-approved workflow; it still runs all pytest tests.
+          git show HEAD:.github/workflows/ci.yml > .github/workflows/ci.yml
           rm -f .github/workflows/import_v10.yml
           rm -rf staging
           git config user.name "github-actions[bot]"
