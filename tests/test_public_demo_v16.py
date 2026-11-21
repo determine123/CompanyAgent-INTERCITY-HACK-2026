@@ -55,3 +55,16 @@ def test_public_layer_rejects_legacy_ingress_and_user_provisioning(synthetic_cli
 
 def test_local_user_creation_remains_allowed_by_policy_not_public(monkeypatch):
     assert not forbidden_cloud_request("/enterprise/api/users","POST",{"COMPANYAGENT_DEPLOYMENT_MODE":"local"})
+
+
+def test_public_https_session_cookie_is_secure_and_http_only(monkeypatch):
+    monkeypatch.setenv("COMPANYAGENT_DEPLOYMENT_MODE","cloud_synthetic")
+    monkeypatch.setenv("COMPANYAGENT_COOKIE_SECURE","true")
+    with TestClient(app) as c:
+        r=c.post("/enterprise/api/auth/login",json={
+            "username":"admin","password":"CI-generated-isolated-password-ONLY"})
+    assert r.status_code==200
+    header=r.headers["set-cookie"]
+    assert "secure" in header.lower()
+    assert "httponly" in header.lower()
+    assert "samesite=strict" in header.lower()
