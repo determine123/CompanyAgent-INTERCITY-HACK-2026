@@ -35,3 +35,9 @@
 #page-client>.heading h1{max-width:900px;line-height:1.2}
 #page-insights .stats{margin-bottom:20px}
 @media(max-width:650px){#page-client>.heading h1{font-size:25px}.review-card{padding:10px}}
+
+/* Workshop source-selection and evidence gate */
+#clientDatasetPanel{margin-top:14px;padding:14px}
+#clientDatasetPanel summary{cursor:pointer}
+#clientDatasetPanel select{max-width:100%}
+#clientWorkshopChecks .review-card{border-color:#dbe5f1}
