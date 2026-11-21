@@ -180,3 +180,54 @@ def test_bus_route_cannot_point_to_metro_or_other_action(monkeypatch,path):
             verify_enterprise_approval=lambda _:True,
             transport=httpx.MockTransport(lambda req:touched.append(req) or httpx.Response(200,json={"data":[]})))
     assert not touched
+
+
+def test_full_f12_authorization_header_works_without_double_bearer(monkeypatch):
+    """F12 Network copies the entire 'Bearer <token>' value, not just the token."""
+    monkeypatch.setenv("COMPANYAGENT_DEPLOYMENT_MODE","enterprise_pilot")
+    token="CI-FAKE-ONE-TIME-TOKEN-DONT-USE"
+    conf=replace(config(),tenant_id="1",bearer_token="Bearer "+token)
+    approval=replace(grant(),tenant_scope="1")
+    requests=[]
+    def fake(req):
+        requests.append(req)
+        assert req.method=="GET"
+        assert req.headers["Authorization"]=="Bearer "+token
+        assert req.headers["tenant-id"]=="1"
+        assert req.url.path=="/stock/bus/page"
+        return httpx.Response(200,json={"code":0,"data":{"list":[]}})
+    result=inspect_private_inventory(
+        "bus",start_date="2026-11-21",end_date="2026-11-21",
+        grant=approval,config=conf,verify_enterprise_approval=lambda g:True,
+        transport=httpx.MockTransport(fake))
+    assert len(requests)==1
+    assert not result["real_stock_bookability_verified"]
+    assert token not in repr(conf)
+    assert token not in str(result)
+
+
+def test_private_config_accepts_token_only_and_complete_header_equivalently():
+    raw=replace(config(),bearer_token="CI-SYNTHETIC-TEST")
+    full=replace(config(),bearer_token="Bearer CI-SYNTHETIC-TEST")
+    assert raw.authorization_header()==full.authorization_header()
+    assert full.authorization_header()=="Bearer CI-SYNTHETIC-TEST"
+
+
+@pytest.mark.parametrize("bad_token",[
+    "", "Bearer ", "Bearer Bearer CI-TEST", "<accessToken>",
+    "Bearer <accessToken>", "Basic CI-TEST", "Bearer CI-TEST\nX-Injection: yes",
+    "Bearer\tCI-TEST", " CI-TEST", "CI-TEST ", "CI TEST",
+    "Bearer CI-TEST\r\nAnother: yes",
+])
+def test_placeholder_injection_and_doubled_bearer_are_denied_without_network(monkeypatch,bad_token):
+    monkeypatch.setenv("COMPANYAGENT_DEPLOYMENT_MODE","enterprise_pilot")
+    calls=[]
+    config_bad=replace(config(),bearer_token=bad_token)
+    with pytest.raises(HongdouPilotDenied):
+        inspect_private_inventory("bus",start_date="2026-11-21",end_date="2026-11-21",
+                                  grant=grant(),config=config_bad,
+                                  verify_enterprise_approval=lambda g:True,
+                                  transport=httpx.MockTransport(
+                                      lambda req:calls.append(req) or httpx.Response(200,json={"data":[]})))
+    assert not calls
+    assert bad_token not in repr(config_bad) if bad_token else True
