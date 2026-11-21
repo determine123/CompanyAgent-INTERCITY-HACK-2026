@@ -70,6 +70,27 @@ No AWS account/region billing data, corporate network routes, IAM permissions or
 6. **Shadow Mode:** freeze OpenClaw Cron and API dependencies, run parallel comparisons with **writes disabled**; verify idempotency and prevent duplicate notifications; require explicit rollback trigger owners and a tested rollback drill.
 7. **Go-live:** SRE, security, data owner and business mentor sign-off in enterprise change control. Production cutover may only follow those approvals; this repository deliberately has no automatic production deployment workflow.
 
+## OpenClaw → CompanyAgent Shadow Mode — offline contract
+
+`enterprise/shadow_compare.py` and `scripts/review_shadow_snapshots.py` compare two **authorized, redacted** JSON task snapshots, without running Cron, making API calls or modifying OpenClaw. Every record needs:
+
+```json
+{
+  "task_id": "public-news-cron",
+  "schedule": "0 9 * * *",
+  "input_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "result_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "read_only": true,
+  "external_side_effects": false
+}
+```
+
+Use canonical SHA-256 digests, not literal task inputs or outputs; *a digest match is not a cryptographic signature or proof of provenance*. The comparator reports missing/duplicate task IDs, schedule/input/result drift and any shadow write or external side effect. Its output always has `production_cutover_permitted=false` and `real_shadow_execution_verified=false` because this is an **offline contract test**. Actual parallel execution still requires enterprise task inventory, disabled side effects, replay evidence, idempotency and SRE rollback drills.
+
+```bash
+python scripts/review_shadow_snapshots.py /approved/openclaw-snapshot.json /approved/companyagent-snapshot.json
+```
+
 ## Migration / rollback matrix
 
 | Phase | Permit | Abort / rollback condition | Evidence required |
