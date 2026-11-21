@@ -27,12 +27,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 8
     env:
-      TOKENDANCE_API_KEY: ${{ secrets.TOKENDANCE_API_KEY }}
       TOKENDANCE_MODEL: ${{ inputs.model || vars.TOKENDANCE_MODEL || 'deepseek-v3.2' }}
       COMPANYAGENT_MODEL_PROVIDER: tokendance
       PYTHONDONTWRITEBYTECODE: '1'
     steps:
       - name: Check encrypted Actions secret (never print it)
+        env:
+          TOKENDANCE_API_KEY: ${{ secrets.TOKENDANCE_API_KEY }}
         shell: bash
         run: |
           set -euo pipefail
@@ -54,6 +55,8 @@ jobs:
       - name: Install runtime dependencies
         run: python -m pip install -r requirements.txt
       - name: Execute actual HTTPS bounded tool loop (not MockTransport)
+        env:
+          TOKENDANCE_API_KEY: ${{ secrets.TOKENDANCE_API_KEY }}
         shell: bash
         run: |
           set -euo pipefail
