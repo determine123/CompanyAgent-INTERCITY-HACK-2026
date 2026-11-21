@@ -6,6 +6,7 @@ This module cannot establish enterprise approval by itself.
 """
 from __future__ import annotations
 
+import json
 import os
 import re
 from typing import Mapping
@@ -56,7 +57,7 @@ def _config(env: Mapping[str, str], kind: str, owner_approved: bool,
     if not re.fullmatch(r"[1-9][0-9]{0,9}", tenant):
         raise PrivatePilotBlocked("Approved tenant ID missing or invalid")
     token = env.get("HONGDOU_PILOT_ACCESS_TOKEN", "")
-    if not isinstance(token, str) or not (16 <= len(token) <= 4096) or any(c in token for c in "\r\n"):
+    if not isinstance(token, str) or not re.fullmatch(r"[!-~]{16,4096}", token):
         raise PrivatePilotBlocked("Approved short-lived access token is required")
     ticket = env.get("HONGDOU_PILOT_APPROVAL_REF", "")
     if not _TICKET.fullmatch(ticket):
@@ -97,18 +98,21 @@ def probe_hongdou_inventory(kind: str, *, start_date: str, end_date: str,
         with httpx.Client(transport=transport, timeout=httpx.Timeout(8.0),
                           follow_redirects=False, trust_env=False,
                           verify=True) as client:
-            response = client.get(url, headers=headers, params=spec["query"])
-            code = response.status_code
-            if code != 200:
-                # Never include provider body, request headers, hostname, or token.
-                raise PrivatePilotBlocked(f"Private inventory API returned HTTP {code}; check enterprise-owned logs")
-            if len(response.content) > _MAX_RESPONSE_BYTES:
-                raise PrivatePilotBlocked("Inventory response exceeds bounded inspection size")
-            content_type = response.headers.get("content-type", "").lower()
-            if "application/json" not in content_type and "+json" not in content_type:
-                raise PrivatePilotBlocked("Inventory response is not JSON")
+            with client.stream("GET", url, headers=headers, params=spec["query"]) as response:
+                code = response.status_code
+                if code != 200:
+                    # Never include provider body, request headers, hostname, or token.
+                    raise PrivatePilotBlocked(f"Private inventory API returned HTTP {code}; check enterprise-owned logs")
+                content_type = response.headers.get("content-type", "").lower()
+                if "application/json" not in content_type and "+json" not in content_type:
+                    raise PrivatePilotBlocked("Inventory response is not JSON")
+                received = bytearray()
+                for chunk in response.iter_bytes():
+                    if len(received) + len(chunk) > _MAX_RESPONSE_BYTES:
+                        raise PrivatePilotBlocked("Inventory response exceeds bounded inspection size")
+                    received.extend(chunk)
             try:
-                payload = response.json()
+                payload = json.loads(received.decode("utf-8"))
                 schema = inspect_mock_response(payload)
             except (ValueError, TypeError, UnicodeError):
                 raise PrivatePilotBlocked("Inventory JSON envelope not compatible with provisional schema") from None
@@ -118,6 +122,8 @@ def probe_hongdou_inventory(kind: str, *, start_date: str, end_date: str,
         raise PrivatePilotBlocked("Private inventory API timeout") from None
     except httpx.RequestError:
         raise PrivatePilotBlocked("Private inventory API network or TLS failure") from None
+    except httpx.HTTPError:
+        raise PrivatePilotBlocked("Private inventory API transport failed") from None
     return {
         "source": "hongdou_private_pilot", "media": kind,
         "probe_http_status": 200, "query_window": [start_date, end_date],
