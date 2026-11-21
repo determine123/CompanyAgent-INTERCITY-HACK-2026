@@ -255,6 +255,7 @@ enterprise_seed()
 app.include_router(enterprise_router)
 app.include_router(improvement_router)
 app.include_router(failure_router)
+app.mount("/governance", StaticFiles(directory=ROOT/"governance_site", html=True), name="governance")
 app.mount("/enterprise", StaticFiles(directory=ROOT/"enterprise_web", html=True), name="enterprise")
 
 @app.on_event("startup")
