@@ -9,8 +9,10 @@ from pydantic import BaseModel,Field
 from .store import STATE,COOKIE,TOOLS,db,init,hashed,password_ok,actor,allowed,can_modify,audit,now,safe_json
 from .dataflows import ingest,poll_folder,approved_url,pull_source
 from .engine import perform, choose_params
+from src.planning import INDUSTRIES
 from .quality import assess_result
 from .proposal import render_proposal
+from .reliability import create_manifest, evaluation, replay
 
 router=APIRouter(prefix='/enterprise/api',tags=['Enterprise Agent Hub'])
 
@@ -51,6 +53,14 @@ class Task(BaseModel):
     coverage_only:bool=True
     inventory_dataset_id:int|None=None
     coverage_dataset_id:int|None=None
+class BenchmarkRequest(BaseModel):
+    landmark:str='正大广场'
+    start_date:str='2027-05-01'
+    medium:str='both'
+    weeks:int=4
+    coverage_only:bool=False
+
+
 class ProposalDecision(BaseModel):
     decision:str
     comment:str=Field(default="",max_length=500)
@@ -330,6 +340,12 @@ def run_task(request:Request,data:Task):
     result['input_dataset_ids']={'inventory':ds['id'],'coverage':cs['id'] if cs else None,'pricing':ps['id'] if ps else None}
     result['skill_policy']=effective_policy
     result['quality_report']=assess_result(result)
+    result['evaluation_report']=evaluation(result)
+    result['replay_manifest']=create_manifest(
+        dict(ag), [dict(sk) for sk in skill_rows],
+        {'inventory':ds,'coverage':cs,'pricing':ps},
+        {'inventory':inventory,'coverage':coverage,'pricing':prices},
+        source_desc,effective_policy,result)
     with db() as c:
         cur=c.execute('INSERT INTO runs(owner_id,agent_id,request_json,result_json,status,created_at) VALUES(?,?,?,?,?,?)',
              (who['id'],data.agent_id,safe_json(data.model_dump()),safe_json(result),'completed',now()))
@@ -356,6 +372,84 @@ def _review_info(c,run_id:int,result:dict):
     return {'status':existing['status'],'comment':existing['comment'],
             'reviewer_id':existing['reviewer_id'],'reviewed_at':existing['reviewed_at'],
             'snapshot_sha256':sha}
+
+
+@router.post('/runs/{run_id}/replay')
+def replay_past_run(run_id:int,request:Request):
+    """Read-only deterministic replay with snapshot grants, not the mutable current Skill."""
+    who=req_actor(request)
+    row=_run_for_view(run_id,who)
+    saved=json.loads(row['result_json'])
+    manifest=saved.get('replay_manifest')
+    if not manifest:
+        raise HTTPException(409,'旧版运行没有冻结清单，不能声称可重放')
+    # Never silently fall back to newer dataset versions or another employee's data.
+    dataset_ids=manifest['dataset_ids']
+    with db() as c:
+        datasets={k:c.execute('SELECT * FROM datasets WHERE id=?',(v,)).fetchone() if v else None
+                  for k,v in dataset_ids.items()}
+    # Cross-user access to private datasets remains denied even to a run owner.
+    if any(d and not allowed(d,who) for d in datasets.values()):
+        raise HTTPException(403,'原数据集不再授权给当前用户，拒绝重放')
+    records={k:json.loads(v['records_json']) if v else [] for k,v in datasets.items()}
+    outcome=replay(manifest,json.loads(row['request_json']),saved,datasets,records)
+    audit(who['id'],'agent_replay',f'Run#{run_id},status={outcome["status"]}')
+    return {'run_id':run_id,**outcome}
+
+
+@router.get('/runs/{run_id}/evaluation')
+def evaluation_for_run(run_id:int,request:Request):
+    who=req_actor(request)
+    row=_run_for_view(run_id,who)
+    saved=json.loads(row['result_json'])
+    return {'run_id':run_id,'evaluation':evaluation(saved),
+            'manifest_available':bool(saved.get('replay_manifest'))}
+
+
+@router.post('/agents/{agent_id}/benchmark')
+def benchmark_agent(agent_id:int,request:Request,data:BenchmarkRequest):
+    """Agno-style runnable 5×3 regression matrix, using only approved local tools."""
+    who=req_actor(request)
+    with db() as c:
+        agent=c.execute('SELECT * FROM agents WHERE id=?',(agent_id,)).fetchone()
+        if not allowed(agent,who):raise HTTPException(404,'Agent不存在或无权评估')
+        skills=[]
+        for sid in json.loads(agent['skill_ids_json']):
+            skill=c.execute('SELECT * FROM skills WHERE id=?',(sid,)).fetchone()
+            if not allowed(skill,who):raise HTTPException(403,'Agent技能无权访问')
+            skills.append(skill)
+        datasets={kind:next((d for d in c.execute('SELECT * FROM datasets WHERE kind=? ORDER BY id DESC',(kind,)).fetchall() if allowed(d,who)),None)
+                  for kind in ('inventory','coverage','pricing')}
+        policy_rows=c.execute('SELECT * FROM skill_policies WHERE skill_id IN ('+','.join('?' for _ in skills)+')',
+                              [s['id'] for s in skills]).fetchall() if skills else []
+    if not datasets['inventory']:raise HTTPException(400,'没有授权的媒体库存数据，无法评估')
+    policy={'strict_coverage':any(bool(x['strict_coverage']) for x in policy_rows)}
+    records={k:json.loads(ds['records_json']) if ds else [] for k,ds in datasets.items()}
+    source_desc={'inventory':datasets['inventory']['name'],
+                 'coverage':datasets['coverage']['name'] if datasets['coverage'] else '未导入',
+                 'pricing':datasets['pricing']['name'] if datasets['pricing'] else '未导入'}
+    tests=[]
+    for industry in INDUSTRIES:
+        for budget in (100,200,500):
+            task={'industry':industry,'budget_wan':budget,'brand':'评估品牌（虚构）',
+                  'landmark':data.landmark,'start_date':data.start_date,'weeks':data.weeks,
+                  'medium':data.medium,'coverage_only':data.coverage_only}
+            try:
+                result=perform(task,agent,skills,records['inventory'],records['coverage'],source_desc,
+                               prices=records['pricing'],policy=policy)
+                report=evaluation(result)
+                passed=not assess_result(result)['blockers'] and result['plan']['spent_wan']<=budget
+                tests.append({'industry':industry,'budget_wan':budget,'passed':passed,
+                              'spent_wan':result['plan']['spent_wan'],
+                              'media_items':result['plan']['item_count'],
+                              'checks_passed':report['passed'],'checks_total':report['total'],
+                              'quality_status':report['status']})
+            except ValueError as error:
+                tests.append({'industry':industry,'budget_wan':budget,'passed':False,'error':str(error)[:200]})
+    count=sum(t['passed'] for t in tests)
+    audit(who['id'],'agent_benchmark',f'Agent#{agent_id},passed={count}/15')
+    return {'agent_id':agent_id,'passed':count,'total':15,'tests':tests,
+            'model_calls':0,'scope':'五行业×三预算的固定工具回归；不证明2027库存、广告ROI或正式报价'}
 
 
 @router.get('/runs/{run_id}/quality')

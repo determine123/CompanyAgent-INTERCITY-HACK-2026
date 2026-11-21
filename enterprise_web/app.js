@@ -15,7 +15,10 @@ async function saveAsset(type){try{const isA=type==='agent',name=isA?'agents':'s
 function editAsset(type,id){let isA=type==='agent',item=(isA?state.agents:state.skills).find(x=>x.id===id);if(!item)return;show(isA?'agents':'skills');$(isA?'agentEdit':'skillEdit').value=item.id;$(isA?'agentName':'skillName').value=item.name;$(isA?'agentDesc':'skillDesc').value=item.description;$(isA?'agentInstructions':'skillInstructions').value=item.instructions;$(isA?'agentVisibility':'skillVisibility').value=item.visibility;document.querySelectorAll(isA?'.select-agent-skill':'.select-skill-tool').forEach(x=>x.checked=(isA?item.skill_ids:item.tools).includes(isA?Number(x.value):x.value));window.scrollTo({top:150,behavior:'smooth'})}
 function setBudget(v){state.budget=Number(v);document.querySelectorAll('.budget').forEach(b=>b.classList.toggle('active',Number(b.dataset.budget)===state.budget))}
 function runHtml(result){let p=result.plan;$('emptyResult').classList.add('hidden');$('runResult').classList.remove('hidden');$('runState').textContent='已完成 · Run #'+result.run_id;$('resTitle').textContent=`${p.brand} · ${p.focus_landmark||'上海'}广告方案`;$('resRationale').textContent=result.rationale;$('resSpent').textContent=p.spent_wan.toLocaleString('zh-CN')+' 万';$('resUnits').textContent=p.unit_count;$('resItems').textContent=p.item_count;
- $('trace').innerHTML=result.trace.map(x=>`<div class="trace-item ${x.status==='ok'?'':'warn'}"><b>${E(TOOLTITLES[x.tool]||x.tool)}</b><small>${E(x.detail)}</small></div>`).join('');$('resultRows').innerHTML=p.selected.slice(0,30).map(r=>`<tr><td>${E(r.media_name||r.id)}</td><td>${E(r.quantity)}</td><td>${E(r.line_total_wan)}</td><td>${E((r.coverage_landmarks||[]).join('、')||'未验证')}</td></tr>`).join('')||'<tr><td colspan="4">没有符合预算、库存价格和覆盖限制的媒体</td></tr>';$('resultWarnings').innerHTML=result.alerts.map(x=>`<p>⚑ ${E(x)}</p>`).join('');$('modelInsight').classList.add('hidden');$('qualityInfo').textContent=result.quality_report?`质量门禁：${result.quality_report.status} · ${result.quality_report.evidence.matched_items}/${result.quality_report.evidence.total_items}项有商圈覆盖证据 · ${result.quality_report.blockers.length}项阻断 · ${result.quality_report.warnings.length}项待核验`:'质量信号待收集';$('iterationHint').textContent=result.improvement_hint||'任务完成后可提交反馈，试验新的 Skill 策略。';$('feedbackRunId').textContent='Run #'+result.run_id;refreshProposalReview();}
+ $('trace').innerHTML=result.trace.map(x=>`<div class="trace-item ${x.status==='ok'?'':'warn'}"><b>${E(TOOLTITLES[x.tool]||x.tool)}</b><small>${E(x.detail)}</small></div>`).join('');$('resultRows').innerHTML=p.selected.slice(0,30).map(r=>`<tr><td>${E(r.media_name||r.id)}</td><td>${E(r.quantity)}</td><td>${E(r.line_total_wan)}</td><td>${E((r.coverage_landmarks||[]).join('、')||'未验证')}</td></tr>`).join('')||'<tr><td colspan="4">没有符合预算、库存价格和覆盖限制的媒体</td></tr>';$('resultWarnings').innerHTML=result.alerts.map(x=>`<p>⚑ ${E(x)}</p>`).join('');$('modelInsight').classList.add('hidden');$('qualityInfo').textContent=result.quality_report?`质量门禁：${result.quality_report.status} · ${result.quality_report.evidence.matched_items}/${result.quality_report.evidence.total_items}项有商圈覆盖证据 · ${result.quality_report.blockers.length}项阻断 · ${result.quality_report.warnings.length}项待核验`:'质量信号待收集';$('evaluationInfo').textContent=result.evaluation_report?`质量评估：${result.evaluation_report.passed}/${result.evaluation_report.total} 项检查通过（不代表商业效果）`:'旧版运行未生成评估结果';
+ $('replayInfo').textContent='冻结数据重放：点击按钮验证当时的工具权限、数据来源与结果';
+ $('benchmarkInfo').textContent='15 场景评估：点击按钮运行五行业 × 三档预算测试';
+ $('iterationHint').textContent=result.improvement_hint||'任务完成后可提交反馈，试验新的 Skill 策略。';$('feedbackRunId').textContent='Run #'+result.run_id;refreshProposalReview();}
 async function parseNaturalBrief(){
  const brief=$('taskBrief').value.trim();if(!brief)throw new Error('请先填写需求文本');
  const r=await api('/brief/parse','POST',{text:brief});const f=r.fields;
@@ -55,6 +58,32 @@ async function decideDemo(decision){if(!state.lastRun?.run_id)return;
  try{await api('/runs/'+state.lastRun.run_id+'/review','POST',{decision,comment:decision==='approve'?'人工审核通过比赛演示（非商业承诺）':'退回修改并核对数据'});
  toast(decision==='approve'?'演示审核已记录':'已退回');await refreshProposalReview();}catch(e){toast(e.message)}
 }
+$('replayRun').onclick=async()=>{
+ if(!state.lastRun?.run_id){toast('请先运行一次业务任务');return}
+ try{
+  $('replayInfo').textContent='正在使用冻结数据与原 Skill 权限重放…';
+  const out=await api('/runs/'+state.lastRun.run_id+'/replay','POST',{});
+  $('replayInfo').textContent=out.verified?
+   '重放通过：冻结的媒体、预算与质量门禁结果完全一致 · '+out.original_fingerprint.slice(0,12):
+   '重放未通过：'+out.status+' · '+(out.issues||[]).join('、');
+  toast(out.verified?'任务可重复验证':'检测到数据/结果漂移，需要人工复核');
+ }catch(err){$('replayInfo').textContent='重放失败：'+err.message;toast(err.message)}
+};
+$('benchmarkAgent').onclick=async()=>{
+ const agentId=Number($('taskAgent').value);
+ if(!agentId){toast('请先选择 Agent');return}
+ try{
+  $('benchmarkInfo').textContent='正在运行 5 行业 × 3 预算安全工具回归…';
+  const report=await api('/agents/'+agentId+'/benchmark','POST',{
+   landmark:$('taskPlace').value,start_date:$('taskDate').value,
+   weeks:Number($('taskWeeks').value),medium:$('taskMedium').value,
+   coverage_only:$('taskStrict').checked});
+  const failures=report.tests.filter(x=>!x.passed).map(x=>x.industry+'/'+x.budget_wan+'万');
+  $('benchmarkInfo').textContent='Agent 回归：'+report.passed+'/'+report.total+' 场景通过'+
+   (failures.length?'；未通过：'+failures.join('、'):'；全部通过（仍需真实档期核验）');
+  toast('场景回归完成');
+ }catch(err){$('benchmarkInfo').textContent='回归异常：'+err.message;toast(err.message)}
+};
 $('approveDemo').onclick=()=>decideDemo('approve');$('rejectDemo').onclick=()=>decideDemo('reject');
 $('aiExplain').onclick=async()=>{if(!state.lastRun)return; if(!confirm('这会将品牌、预算和媒体数量等汇总信息发送到 B1X 模型；不会发送完整库存文件。是否继续？'))return;
  try{$('aiExplain').disabled=true;const r=await api('/runs/'+state.lastRun.run_id+'/ai-explain','POST',{});$('modelInsight').classList.remove('hidden');$('modelInsight').textContent='✦ '+r.model+'：'+r.content;toast('AI 解读已完成');}catch(e){toast(e.message)}finally{$('aiExplain').disabled=false}};

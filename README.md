@@ -1,4 +1,4 @@
-# CompanyAgent v1.0 — 问题驱动、自我迭代的企业 Agent 工作台
+# CompanyAgent v1.1 — 问题驱动、可验证、自我迭代的企业 Agent 工作台
 
 **INTERCITY HACK 湖州场 · AI+办公赛道 · company Agent**
 
@@ -24,6 +24,17 @@ Windows 也可以双击 `run_windows.bat`。浏览器打开：
 
 原有交互广告提案页仍可在 `http://127.0.0.1:8765/` 打开。
 
+
+## v1.1 新增：可重复执行的 Agent 评估与数据快照
+
+参考 LangGraph 的 Checkpointer、Agno 的 Eval 和 OpenAI Agents SDK 的 Tracing/Guardrails，**原生实现，不依赖或冒充这些框架**：
+
+- **冻结执行清单（Run Manifest）**：每次运行自动保存 Agent/Skill 当时的工具授权、策略版本、数据集 ID、SHA-256 指纹及媒体组合摘要；历史 Skill 修改不会改变这次运行的解释依据。指纹只用于一致性检查，不等于外部可信签名或不可篡改审计。
+- **一键可验证重放**：登录后对历史 Run 点击「冻结数据重放校验」，从当时的授权本地数据集重新执行；若数据被修改、删除或结果记录变更，明确返回 `source_drift / result_changed / mismatch`，不会谎称“可重放成功”。重放不调用模型、第三方 API 或任何实际广告锁位工具。
+- **规则评估集（Eval Suite）**：自动验证预算、实际选中媒介、三档预算变体、工具轨迹、商圈覆盖证据、来源描述共 6 项；另外有 **五行业 × 三档预算 = 15 个测试场景** 可通过工作台一键运行。
+- **权限与人工边界**：任务所有者/管理员才可重放；Skill 当前版本变更不影响历史权限快照；更改后续价格与可售数据不会被静默回填到历史结果。
+
+本地环境通过 **39 项后端测试、Chromium 浏览器端到端（真实 FastAPI 桥接）测试**。GitHub Actions 运行结果以仓库的最新 `main` CI 为准。详细说明见 [v1.1 架构与验证](docs/V11_RELIABILITY_AND_EVALS.md)。
 
 ## v1.0 新增：从 Agent 方案到可审计的交付
 

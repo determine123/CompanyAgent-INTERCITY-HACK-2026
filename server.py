@@ -50,7 +50,7 @@ class AiInput(BaseModel):
 
 @app.get("/api/health")
 def health():
-    return {"ok": True, "ai_enabled": bool(os.getenv("B1X_API_KEY")), "version":"1.0.0"}
+    return {"ok": True, "ai_enabled": bool(os.getenv("B1X_API_KEY")), "version":"1.1.0"}
 
 @app.get("/api/brief/sample")
 def sample_brief():
