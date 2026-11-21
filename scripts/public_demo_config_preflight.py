@@ -38,6 +38,8 @@ def validate(cfg:dict,*,ci:bool=False)->list[str]:
         errors.append("Only cloud_synthetic mode is allowed")
     if str(env.get("COMPANYAGENT_AUTO_SYNC","")).lower() not in ("false","0"):
         errors.append("Automatic enterprise data source sync must remain disabled")
+    if str(env.get("COMPANYAGENT_COOKIE_SECURE","")).lower() != "true":
+        errors.append("Public HTTPS demo requires Secure session cookies")
     if str(env.get("COMPANYAGENT_REAL_DATA_ENABLED","")).lower() not in ("false","0"):
         errors.append("Real corporate data must be forbidden in the public demo")
     if str(env.get("COMPANYAGENT_ALLOWED_DATA_HOSTS","")):
