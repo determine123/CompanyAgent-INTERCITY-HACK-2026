@@ -4,7 +4,7 @@ No task execution, network calls, scheduler modification, side effects, or
 production cutover. Input checksums must be generated externally.
 """
 from __future__ import annotations
-from collections import Counter
+import re
 
 REQUIRED = {"task_id","schedule","input_sha256","result_sha256","read_only",
             "external_side_effects"}
@@ -22,6 +22,9 @@ def _index(rows, label):
         if any(not isinstance(row[k],str) or len(row[k])>200
                for k in ("schedule","input_sha256","result_sha256")):
             raise ValueError(f"{label} invalid schedule/hash format")
+        for digest_key in ("input_sha256","result_sha256"):
+            if not re.fullmatch(r"[0-9a-f]{64}", row[digest_key]):
+                raise ValueError(f"{label} invalid SHA-256 fingerprint")
         if not isinstance(row["read_only"],bool) or not isinstance(row["external_side_effects"],bool):
             raise ValueError(f"{label} requires boolean side-effect flags")
         idx[task]=row
