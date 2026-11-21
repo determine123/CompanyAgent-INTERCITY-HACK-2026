@@ -1,0 +1,63 @@
+name: Verify and publish CompanyAgent v1.1
+on:
+  push:
+    paths:
+      - 'staging/CompanyAgent_v1.1_Eval_Replay_Public.zip'
+permissions:
+  contents: write
+jobs:
+  verify_publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout reviewed repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify artifact checksum and exact public file count
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path, PurePosixPath
+          import zipfile, hashlib
+          source=Path('staging/CompanyAgent_v1.1_Eval_Replay_Public.zip')
+          expected='ca4b3468e12b13e0f6a0201cf1d4af5dcc6fdc64857dcc38439e07cd63bf12fd'
+          assert hashlib.sha256(source.read_bytes()).hexdigest()==expected, 'Release artifact hash mismatch'
+          with zipfile.ZipFile(source) as z:
+              files=[i for i in z.infolist() if not i.is_dir()]
+              assert len(files)==58, f'Unexpected file count {len(files)}'
+              for item in files:
+                  parts=PurePosixPath(item.filename).parts
+                  assert len(parts)>1 and parts[0]=='CompanyAgent'
+                  assert all(p not in ('','.','..') for p in parts)
+                  out=Path(*parts[1:])
+                  assert not out.is_absolute() and not out.is_symlink()
+                  out.parent.mkdir(parents=True,exist_ok=True)
+                  out.write_bytes(z.read(item))
+          print('Verified 58 public files from exact artifact')
+          PY
+      - name: Install test dependencies
+        run: python -m pip install -r requirements-dev.txt
+      - name: Python compile
+        run: python -m compileall -q server.py enterprise src
+      - name: Frontend JavaScript syntax
+        run: |
+          node --check enterprise_web/app.js
+          node --check web/app.js
+      - name: Run all public regression tests
+        run: python -m pytest -q
+      - name: Publish only when all previous steps pass
+        shell: bash
+        run: |
+          # Keep the existing main CI workflow byte-for-byte to avoid permission escalation.
+          git show HEAD:.github/workflows/ci.yml > .github/workflows/ci.yml
+          rm -f .github/workflows/import_v11.yml
+          rm -rf staging
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "feat: v1.1 reliable replay, agent evals and benchmark lab"
+          git push origin HEAD:main
