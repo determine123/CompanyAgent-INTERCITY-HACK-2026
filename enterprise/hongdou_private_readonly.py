@@ -36,9 +36,12 @@ class EnterpriseGrant:
     def validate_structure(self, tenant:str):
         # Ticket references are just untrusted metadata; an external PDP MUST
         # check the actual approved tickets. This code does not sign or issue grants.
-        for item in (self.data_owner_ticket,self.security_ticket,self.tenant_scope):
+        for item in (self.data_owner_ticket,self.security_ticket):
             if not isinstance(item,str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._:/-]{4,119}",item):
-                raise HongdouPilotDenied("Enterprise grant references invalid")
+                raise HongdouPilotDenied("Enterprise approval ticket reference invalid")
+        # Company tenant IDs may be a single digit; do not use ticket regex here.
+        if not isinstance(self.tenant_scope,str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]{0,63}",self.tenant_scope):
+            raise HongdouPilotDenied("Enterprise tenant scope invalid")
         if self.tenant_scope!=tenant:raise HongdouPilotDenied("Grant tenant scope mismatch")
         try:
             expiry=dt.datetime.fromisoformat(self.expires_at_utc.replace("Z","+00:00"))
@@ -74,13 +77,15 @@ class PrivateServiceConfig:
             or u.username or u.password or u.query or u.fragment or u.path not in ("","/")
             or u.port not in (None,443,881)):
             raise HongdouPilotDenied("Private endpoint must be exact approved HTTPS host/port")
-        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]{1,63}",self.tenant_id):
+        if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]{0,63}",self.tenant_id):
             raise HongdouPilotDenied("Tenant ID invalid")
         if not self.bearer_token or len(self.bearer_token)>4096 or any(ord(ch)<33 for ch in self.bearer_token):
             raise HongdouPilotDenied("Private token invalid")
-        for path in (self.bus_path,self.metro_path):
-            if not re.fullmatch(r"/[A-Za-z0-9/_-]{1,180}",path) or "//" in path or ".." in path:
-                raise HongdouPilotDenied("Private stock routes must be fixed approved paths")
+        for kind,path in (("bus",self.bus_path),("metro",self.metro_path)):
+            if (not re.fullmatch(r"/[A-Za-z0-9/_-]{1,180}",path)
+                or "//" in path or ".." in path
+                or not path.endswith("/"+kind+"/page")):
+                raise HongdouPilotDenied("Private bus/metro routes must be fixed approved read-only page paths")
 
 def inspect_private_inventory(kind:str, *, start_date:str,end_date:str,
                               grant:EnterpriseGrant,config:PrivateServiceConfig,

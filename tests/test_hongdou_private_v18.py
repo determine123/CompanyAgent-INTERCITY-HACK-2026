@@ -147,3 +147,36 @@ def test_disallowed_query_injection_and_cross_endpoint_filters_rejected(monkeypa
         with pytest.raises((ValueError,HongdouPilotDenied)):
             inspect_private_inventory(**data)
     assert not calls
+
+
+def test_single_digit_enterprise_tenant_id_is_valid_when_pdp_approves(monkeypatch):
+    # Contract documents commonly use numeric tenants, including one digit.
+    original=config()
+    short_tenant=replace(original,tenant_id="7")
+    short_grant=replace(grant(),tenant_scope="7")
+    monkeypatch.setenv("COMPANYAGENT_DEPLOYMENT_MODE","enterprise_pilot")
+    def fake(req):
+        assert req.headers["tenant-id"]=="7"
+        return httpx.Response(200,json={"data":{"list":[]}})
+    result=inspect_private_inventory(
+        "bus",start_date="2026-11-21",end_date="2026-11-21",
+        grant=short_grant,config=short_tenant,
+        verify_enterprise_approval=lambda g:True,
+        transport=httpx.MockTransport(fake))
+    assert result["metadata"]["sample_list_length"]==0
+    assert result["real_stock_bookability_verified"] is False
+
+@pytest.mark.parametrize("path",[
+    "/stock/metro/page", "/stock/bus/other", "/stock/bus/page/extra",
+    "/stock/bus/../page"
+])
+def test_bus_route_cannot_point_to_metro_or_other_action(monkeypatch,path):
+    monkeypatch.setenv("COMPANYAGENT_DEPLOYMENT_MODE","enterprise_pilot")
+    touched=[]
+    with pytest.raises(HongdouPilotDenied):
+        inspect_private_inventory(
+            "bus",start_date="2026-11-21",end_date="2026-11-21",
+            grant=grant(),config=replace(config(),bus_path=path),
+            verify_enterprise_approval=lambda _:True,
+            transport=httpx.MockTransport(lambda req:touched.append(req) or httpx.Response(200,json={"data":[]})))
+    assert not touched
