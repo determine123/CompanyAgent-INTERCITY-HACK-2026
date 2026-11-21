@@ -1,0 +1,31 @@
+# Railway terminates public TLS, then forwards HTTP to Caddy's $PORT.
+# Unauthenticated /__railway/health exposes only health status and proves
+# the internal FastAPI backend is responding. All other paths need Basic Auth.
+:{$PORT} {
+    encode zstd gzip
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "no-referrer"
+        Strict-Transport-Security "max-age=31536000"
+        Cache-Control "no-store"
+        -Server
+    }
+    @railway_health path /__railway/health
+    handle @railway_health {
+        rewrite * /healthz
+        reverse_proxy 127.0.0.1:8765
+    }
+    handle {
+        route {
+            basic_auth {
+                {$PUBLIC_DEMO_USER} {$PUBLIC_DEMO_BCRYPT_HASH}
+            }
+            @unsafe path /api /api/* /enterprise/api/datasets/upload /enterprise/api/sources /enterprise/api/sources/* /enterprise/api/data/bridge/reconcile /enterprise/api/users
+            respond @unsafe 403
+            @root path /
+            redir @root /enterprise/ 302
+            reverse_proxy 127.0.0.1:8765
+        }
+    }
+}
