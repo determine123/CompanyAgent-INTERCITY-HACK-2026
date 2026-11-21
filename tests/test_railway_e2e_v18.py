@@ -64,3 +64,80 @@ def test_live_probe_rejects_unsafe_targets_missing_secrets_and_no_consent(bad):
     env.update(bad)
     with pytest.raises(AcceptanceFailed):
         check_env(env)
+
+
+def test_demo_seed_created_even_with_another_inventory_dataset(isolated_demo_db):
+    """Presence of an existing non-demo inventory must not suppress demo bootstrap."""
+    isolated_demo_db.init()
+    with isolated_demo_db.db() as c:
+        c.execute("DELETE FROM datasets WHERE origin=?",("demo_synthetic_repo_seed",))
+        admin=c.execute("SELECT id FROM users WHERE username='admin'").fetchone()["id"]
+        c.execute(
+            """INSERT INTO datasets(owner_id,kind,name,origin,records_json,count,checksum,
+               visibility,imported_at,source_id,notes) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+            (admin,"inventory","Other isolated test inventory","non_demo_existing",
+             "[]",0,"0"*64,"team",store.now(),None,"Synthetic unit-test placeholder"),
+        )
+    isolated_demo_db.init()
+    with isolated_demo_db.db() as c:
+        rows=c.execute("SELECT origin,count,notes FROM datasets ORDER BY id").fetchall()
+        assert len(rows)==2
+        assert {r["origin"] for r in rows}=={"non_demo_existing","demo_synthetic_repo_seed"}
+        assert next(r["count"] for r in rows if r["origin"]=="demo_synthetic_repo_seed") == 80
+        assert next(r["count"] for r in rows if r["origin"]=="non_demo_existing") == 0
+    # Restart must not create duplicate records, or modify the other dataset.
+    isolated_demo_db.init()
+    with isolated_demo_db.db() as c:
+        assert c.execute("SELECT COUNT(*) FROM datasets").fetchone()[0]==2
+
+
+def test_missing_demo_seed_is_recovered_on_later_startup(isolated_demo_db):
+    isolated_demo_db.init()
+    with isolated_demo_db.db() as c:
+        c.execute("DELETE FROM datasets WHERE origin=?",("demo_synthetic_repo_seed",))
+        assert c.execute("SELECT COUNT(*) FROM datasets").fetchone()[0]==0
+    isolated_demo_db.init()
+    with isolated_demo_db.db() as c:
+        restored=c.execute(
+            "SELECT kind,origin,count,name FROM datasets WHERE origin=?",
+            ("demo_synthetic_repo_seed",),
+        ).fetchall()
+        assert len(restored)==1
+        assert restored[0]["count"]==80
+        assert "虚构" in restored[0]["name"]
+
+
+def test_fastapi_startup_hook_rechecks_demo_dataset(monkeypatch,tmp_path):
+    """Starting the HTTP service re-seeds the scoped synthetic inventory."""
+    from fastapi.testclient import TestClient
+    from server import app
+    monkeypatch.setattr(store,"STATE",tmp_path)
+    monkeypatch.setattr(store,"DB",tmp_path/"companyagent-restart-test.sqlite3")
+    monkeypatch.setenv("COMPANYAGENT_DEPLOYMENT_MODE","cloud_synthetic")
+    monkeypatch.setenv("COMPANYAGENT_ADMIN_PASSWORD","CI-app-restart-isolated-fixture-password")
+    with TestClient(app):
+        with store.db() as c:
+            assert c.execute(
+                "SELECT COUNT(*) FROM datasets WHERE origin=?",
+                ("demo_synthetic_repo_seed",),
+            ).fetchone()[0]==1
+    with store.db() as c:
+        c.execute("DELETE FROM datasets WHERE origin=?",("demo_synthetic_repo_seed",))
+    with TestClient(app):
+        with store.db() as c:
+            assert c.execute(
+                "SELECT COUNT(*) FROM datasets WHERE origin=?",
+                ("demo_synthetic_repo_seed",),
+            ).fetchone()[0]==1
+
+
+def test_demo_fixture_media_mix_is_bus_and_metro_only(isolated_demo_db):
+    import json
+    isolated_demo_db.init()
+    with isolated_demo_db.db() as c:
+        raw=c.execute("SELECT records_json FROM datasets WHERE origin=?",
+                      ("demo_synthetic_repo_seed",)).fetchone()["records_json"]
+    records=json.loads(raw)
+    assert len(records)==80
+    assert {item["media_type"] for item in records}=={"bus","metro"}
+    assert all(str(item["source"]).startswith("DEMO-") for item in records)
