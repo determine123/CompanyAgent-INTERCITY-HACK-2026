@@ -40,6 +40,9 @@ def validate_deployment(env=None):
             raise RuntimeError("CLOUD_SYNTHETIC_BLOCKED: enterprise connector credentials are forbidden")
         if values.get("COMPANYAGENT_REAL_DATA_ENABLED", "false").lower() not in ("", "false", "0"):
             raise RuntimeError("CLOUD_SYNTHETIC_BLOCKED: real-data flag is forbidden")
+        if any(key.startswith("HONGDOU_PILOT_") and str(val).strip()
+               for key, val in values.items()):
+            raise RuntimeError("CLOUD_SYNTHETIC_BLOCKED: Hongdou enterprise pilot configuration is forbidden")
     # Railway demo is an additional *synthetic-only* hardening profile.
     # It cannot be used to enable real data or production deployment.
     if values.get("COMPANYAGENT_RAILWAY_PRIVATE_BACKEND", "").lower() in ("1", "true"):
