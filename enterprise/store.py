@@ -81,6 +81,13 @@ def init():
                  run_id INTEGER PRIMARY KEY,owner_id INTEGER NOT NULL,run_sha256 TEXT NOT NULL,
                  inputs_json TEXT NOT NULL,report_json TEXT NOT NULL,recorded_at TEXT NOT NULL,
                  FOREIGN KEY(run_id) REFERENCES runs(id));
+              CREATE TABLE IF NOT EXISTS demand_skill_drafts(
+                 id INTEGER PRIMARY KEY,owner_id INTEGER NOT NULL,kind TEXT NOT NULL,
+                 snapshot_json TEXT NOT NULL,status TEXT NOT NULL DEFAULT 'pending',
+                 created_at TEXT NOT NULL,adopted_at TEXT,
+                 agent_id INTEGER,skill_id INTEGER,
+                 FOREIGN KEY(owner_id) REFERENCES users(id));
+              CREATE INDEX IF NOT EXISTS idx_demand_drafts_owner ON demand_skill_drafts(owner_id,id DESC);
               CREATE INDEX IF NOT EXISTS idx_failure_owner ON failure_cases(owner_id,id DESC);
               CREATE INDEX IF NOT EXISTS idx_model_runs_owner ON model_tool_runs(owner_id,id DESC);
               CREATE INDEX IF NOT EXISTS idx_imp_creator ON improvements(creator_id,id DESC);

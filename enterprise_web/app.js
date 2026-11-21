@@ -1,12 +1,12 @@
 /* CompanyAgent staff workbench — only approved fixed tools; no arbitrary code execution. */
 const $=id=>document.getElementById(id);
 const E=value=>String(value??'').replace(/[&<>"']/g,s=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s]));
-const state={csrf:'',user:null,agents:[],skills:[],datasets:[],sources:[],lastRun:null,budget:100,page:'studio',publicSynthetic:false};
+const state={csrf:'',user:null,agents:[],skills:[],datasets:[],sources:[],lastRun:null,budget:100,page:'client',publicSynthetic:false};
 function enforceIndustry(){if(!state.publicSynthetic)return;for(const id of ['clientIndustry','taskIndustry']){const select=$(id);if(select){select.value='食品饮料';select.disabled=true;select.title='公网演示只支持食品饮料，其他行业需独立审批';}}for(const id of ['clientCoverage','taskStrict']){const input=$(id);if(input){input.checked=false;input.disabled=true;input.title='公网演示没有授权的商圈覆盖数据；仅生成无覆盖证明的参考候选方案';}}const bench=$('benchmarkAgent');if(bench){bench.disabled=true;bench.title='公网单行业演示不开放五行业测试';}const status=$('parseStatus');if(status)status.textContent='演示范围：食品饮料 · 虚构库存 · 未取得商圈覆盖证据 · 红豆真实接口未接入';}
 const TOOLTITLES={brief_parse:'Brief 结构化解析',load_inventory:'加载授权库存',match_coverage:'覆盖证据精确匹配',optimize_budget:'预算确定性优化',review_risks:'人工核验风险清单',explain_plan:'生成可解释方案'};
 function toast(message){const el=$('toast');el.textContent=message;el.classList.remove('hidden');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.add('hidden'),3400)}
 async function api(path,method='GET',data){const headers={};if(method!=='GET')headers['X-CSRF-Token']=state.csrf;if(data!==undefined&&!(data instanceof FormData)){headers['Content-Type']='application/json';data=JSON.stringify(data)}let r;try{r=await fetch('/enterprise/api'+path,{method,headers,body:method==='GET'?undefined:data,credentials:'same-origin'})}catch(e){throw new Error('无法连接本地服务：'+e.message)}const content=await r.json().catch(()=>({}));if(!r.ok)throw new Error(typeof content.detail==='string'?content.detail:'服务器操作失败 '+r.status);return content}
-function show(page){state.page=page;document.querySelectorAll('.screen').forEach(x=>x.classList.toggle('active',x.id==='page-'+page));document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.page===page));$('crumb').textContent=({studio:'智能任务执行',agents:'我的 Agents',skills:'我的 Skills',datasets:'数据源中心',audit:'执行与审计',iteration:'自我迭代实验室',client:'客户需求与方案'})[page];if(page==='audit')refreshAudit();if(page==='datasets')refreshData();if(page==='iteration'){refreshImprovements();loadFailureCases()}window.scrollTo({top:0,behavior:'smooth'})}
+function show(page){state.page=page;document.querySelectorAll('.screen').forEach(x=>x.classList.toggle('active',x.id==='page-'+page));document.querySelectorAll('.nav').forEach(x=>x.classList.toggle('active',x.dataset.page===page));$('crumb').textContent=({studio:'智能任务执行',agents:'我的 Agents',skills:'我的 Skills',datasets:'数据源中心',audit:'执行与审计',iteration:'自我迭代实验室',client:'客户需求与方案',insights:'企业需求资产库'})[page];if(page==='audit')refreshAudit();if(page==='datasets')refreshData();if(page==='iteration'){refreshImprovements();loadFailureCases()}if(page==='insights')refreshDemandInsights()window.scrollTo({top:0,behavior:'smooth'})}
 function renderAsset(asset,type){const isOwner=asset.owner_id===state.user.id||state.user.role==='admin';const ident=type==='agent'?asset.skill_ids:asset.tools;let meta=type==='agent'?`已绑定 ${ident.length} 项 Skill`:`工具：${ident.map(t=>TOOLTITLES[t]||t).join('、')}`;return `<article class="asset"><h3>${E(asset.name)}</h3><p>${E(asset.description||'暂无业务说明')}</p><div class="asset-meta"><span>${asset.visibility==='team'?'企业共享':'仅个人'} · ${E(meta)}</span>${isOwner?`<button class="tiny-btn" data-edit-${type}="${asset.id}">编辑</button>`:''}</div></article>`}
 async function refreshAssets(){const [a,s]=await Promise.all([api('/agents'),api('/skills')]);state.agents=a.items;state.skills=s.items;$('agentList').innerHTML=a.items.map(x=>renderAsset(x,'agent')).join('')||'<p class="micro">暂无 Agent，左侧新建</p>';$('skillList').innerHTML=s.items.map(x=>renderAsset(x,'skill')).join('')||'<p class="micro">暂无 Skill，左侧新建</p>';$('agentCount').textContent=a.items.length+' 个';$('skillCount').textContent=s.items.length+' 个';$('taskAgent').innerHTML=a.items.map(x=>`<option value="${x.id}">${E(x.name)}</option>`).join('');$('clientAgent').innerHTML=a.items.map(x=>`<option value="${x.id}">${E(x.name)}</option>`).join('');$('agentSkillOptions').innerHTML=s.items.map(x=>`<label><input type="checkbox" value="${x.id}" class="select-agent-skill"><span>${E(x.name)}</span></label>`).join('');$('skillTools').innerHTML=s.supported_tools.map(x=>`<label><input type="checkbox" value="${E(x)}" class="select-skill-tool"><span>${E(TOOLTITLES[x]||x)}</span></label>`).join('')}
 function resetAgent(){for(let id of ['agentEdit','agentName','agentDesc','agentInstructions'])$(id).value='';$('agentVisibility').value='private';document.querySelectorAll('.select-agent-skill').forEach(x=>x.checked=false)}
@@ -232,9 +232,10 @@ async function generateClientProposal(){
   renderClientProposal(r);
   renderEfficiency();
   refreshStatus();
+  await loadClientPreReview(r.run_id);
   toast('客户方案已生成：可查看质量和媒体依据');
  }catch(err){$('clientRunState').textContent='执行未成功';toast(err.message)}
- finally{b.disabled=false;b.innerHTML='✦ Agent 生成可验证方案 <span>→</span>'}
+ finally{b.disabled=false;b.innerHTML='✦ 开始分析客户需求，给出最优候选 <span>→</span>'}
 }
 function renderClientProposal(r){
  const p=r.plan||{},q=r.quality_report||{},rows=p.selected||[];
@@ -252,6 +253,7 @@ function renderClientProposal(r){
  $('clientRows').innerHTML=rows.slice(0,30).map(x=>`<tr><td>${E(x.media_name||x.id)}</td><td>${E(x.quantity)}</td><td>${E(x.line_total_wan)}</td><td>${E((x.coverage_landmarks||[]).join('、')||'待核验')}</td></tr>`).join('')||'<tr><td colspan="4">没有符合条件的媒体；请检查数据或筛选条件</td></tr>';
  const warns=[...(q.blockers||[]),...(q.warnings||[])].map(x=>x.message);
  $('clientWarnings').innerHTML=warns.map(x=>`<p>⚑ ${E(x)}</p>`).join('')||'<p>质量规则未发现问题；仍需人工确认商业条件。</p>';
+ $('clientDbProof').textContent='本次建议来自企业授权数据集：'+Object.entries(r.data_sources||{}).map(([name,source])=>name+'：'+source).join('；')+'。预算规则选出约束内组合，并不证明真实档期可售或投放效果最优。';
  $('clientModelOutput').classList.add('hidden');
 }
 async function analyzeClientChange(){
@@ -269,6 +271,56 @@ async function analyzeClientChange(){
   toast('影响分析已生成，未更改任何真实业务系统');
  }catch(e){toast(e.message)}finally{b.disabled=false}
 }
+// Customer-facing evidence review, grounded in the same authenticated frozen Run.
+async function loadClientPreReview(runId){
+ const risks=$('clientReviewRisks'),questions=$('clientReviewQuestions'),actions=$('clientReviewActions');
+ risks.textContent='正在检查数据缺口…';questions.textContent='正在生成业务追问…';actions.textContent='正在组织人工待办…';
+ try{
+   const d=await api('/runs/'+runId+'/decision-brief');
+   risks.innerHTML=d.risks.map((x,i)=>'<div class="review-card"><b>风险 '+(i+1)+' · '+E(x.title)+'</b><p>证据：'+E(x.evidence)+'</p><small>修复建议：'+E(x.fix)+'</small></div>').join('');
+   questions.innerHTML=d.questions.map((x,i)=>'<div class="review-card"><b>Q'+(i+1)+'</b><span> '+E(x)+'</span></div>').join('');
+   actions.innerHTML=d.next_actions.map(x=>'<div class="review-card"><b>'+E(x.priority)+' · '+E(x.title)+'</b><p>'+E(x.why)+'</p></div>').join('');
+ }catch(e){risks.textContent='预审未完成：'+e.message;questions.textContent='请检查执行记录';actions.textContent='请人工核验目标和数据来源'}
+}
+async function refreshDemandInsights(){
+ try{
+  const [x,d]=await Promise.all([api('/insights'),api('/insights/drafts')]);
+  $('insightTotal').textContent=x.sample_size;
+  const biggest=entries=>Object.entries(entries||{}).sort((a,b)=>b[1]-a[1])[0];
+  $('insightGoal').textContent=biggest(x.goal_counts)?.[0]||'待采样';
+  $('insightRisk').textContent=biggest(x.risk_counts)?.[0]||'未发现';
+  const line=(name,values)=>'<div class="review-card"><b>'+name+'</b><p>'+Object.entries(values||{}).map(([k,v])=>E(k)+'：'+v).join(' · ')+'</p></div>';
+  $('insightSummary').innerHTML=line('Campaign 目标',x.goal_counts)+line('预算分布',x.budget_counts)+line('媒介偏好',x.medium_counts)+line('质量缺口（只含编码）',x.risk_counts);
+  $('insightRecent').innerHTML=(x.recent||[]).map(r=>'<article class="asset"><h3>Run #'+r.run_id+' · '+E(r.campaign_goal)+'</h3><p>'+E(r.budget_band)+' · '+E(r.medium)+' · '+E(r.quality_status)+' · '+E(r.created_at)+'</p></article>').join('')||'<p class="micro">没有历史需求；先去客户界面运行方案。</p>';
+  $('insightRecommendation').textContent=x.sample_size+' 条结构化需求中，建议优先：'+x.suggested_skill+'。样本来自 '+x.scope+'；不证明商业效果或模型自动学习。';
+  $('insightCreateDraft').disabled=x.sample_size<1;
+  $('insightDrafts').innerHTML=(d.items||[]).map(r=>'<article class="asset"><h3>候选 #'+r.id+' · '+E(r.kind)+'</h3><p>'+E(r.status)+' · 样本 '+r.sample_size+' · '+E(r.created_at)+'</p></article>').join('')||'<p class="micro">尚无 Skill 候选。</p>';
+ }catch(e){$('insightRecommendation').textContent='需求分析失败：'+e.message}
+}
+$('insightCreateDraft').onclick=async()=>{
+ const b=$('insightCreateDraft');b.disabled=true;
+ try{
+  const r=await api('/insights/drafts','POST',{});
+  state.currentDemandDraft=r.draft_id;
+  $('insightDraftPreview').innerHTML='<div class="review-card"><b>'+E(r.template.title)+'</b><p>'+E(r.template.description)+'</p><small>待人工审批：'+r.template.tools.map(E).join('、')+'；样本 '+r.sample_size+'。不会自动扩权或发布。</small></div>';
+  $('insightApproveDraft').classList.remove('hidden');
+  await refreshDemandInsights();
+  toast('候选已生成，尚未授予工具权限');
+ }catch(e){toast(e.message)}finally{b.disabled=false}
+};
+$('insightApproveDraft').onclick=async()=>{
+ const id=state.currentDemandDraft;if(!id){toast('请先生成候选');return}
+ if(!confirm('明确批准：根据所示白名单创建仅自己可见的 Agent 与 Skill。不会自动部署、锁位或对外发送信息。继续？'))return;
+ const b=$('insightApproveDraft');b.disabled=true;
+ try{
+  const r=await api('/insights/drafts/'+id+'/adopt','POST',{});
+  state.currentDemandDraft=null;
+  b.classList.add('hidden');
+  $('insightDraftPreview').textContent='已创建私有 Agent #'+r.agent_id+' 与 Skill #'+r.skill_id+'。请在后台审查工具、权限及业务规则后再执行。';
+  await Promise.all([refreshAssets(),refreshDemandInsights(),refreshStatus()]);
+  toast('Agent/Skill 已创建（默认私有）');
+ }catch(e){toast(e.message);b.disabled=false}
+};
 $('clientGenerate').onclick=generateClientProposal;
 $('clientManualBaseline').oninput=renderEfficiency;
 $('clientReviewMinutes').oninput=renderEfficiency;
