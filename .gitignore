@@ -4,13 +4,20 @@ __pycache__/
 *.pyc
 .DS_Store
 node_modules/
+
+# Competition-supplied reference datasets; do not push to a public GitHub repository.
 data/contest_private/
+
+# Generated reports may embed confidential contest media data.
 docs/cloud-test/
 docs/CompanyAgent_赛事参考方案_交互HTML*.html
 docs/SOURCE_MANIFEST.json
+
+# Local authentication database and one-time initial password. NEVER commit.
 runtime/
 *.sqlite3
 *.sqlite3-wal
 *.sqlite3-shm
 **/FIRST_LOGIN.txt
+# Provider accounts, API keys, employee or contest data
 .env.*.local

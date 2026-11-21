@@ -1,0 +1,2 @@
+﻿id,media_type,media_name,district,location,format,unit_price_wan,available_count,available_from,available_to
+EXAMPLE-001,bus,示例线路,黄浦区,示例位置,标准公交车身,3.5,2,2027-03-01,2027-12-31

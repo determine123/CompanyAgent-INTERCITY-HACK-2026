@@ -2,7 +2,7 @@ services:
   companyagent:
     build: .
     environment:
-      HOST: "0.0.0.0"
+      HOST: "0.0.0.0" # container-only; published port bound to loopback below
       PORT: "8765"
       COMPANYAGENT_RUNTIME_DIR: "/app/runtime"
       COMPANYAGENT_AUTO_SYNC: "false"
