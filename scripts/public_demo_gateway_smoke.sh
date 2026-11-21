@@ -6,14 +6,24 @@ edge="ca-public-edge-ci-${GITHUB_RUN_ID:-$$}"
 network="ca-public-demo-ci-${GITHUB_RUN_ID:-$$}"
 app="ca-synthetic-app-${GITHUB_RUN_ID:-$$}"
 proxy="ca-synthetic-proxy-${GITHUB_RUN_ID:-$$}"
+ci_env_created=false
 cleanup(){
+  if [[ "$ci_env_created" = true ]]; then rm -f deploy/public-demo/.env; fi
   docker logs --tail 20 "$proxy" 2>/dev/null || true
   docker rm -f "$proxy" "$app" >/dev/null 2>&1 || true
   docker network rm "$network" "$edge" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
 
+# A synthetic sentinel proves the real operator's nested .env is never copied into an image.
+if [[ "${GITHUB_ACTIONS:-false}" = true ]]; then
+  test ! -e deploy/public-demo/.env
+  printf 'SYNTHETIC_SECRET_NEVER_PACKAGE=TEST_ONLY\n' > deploy/public-demo/.env
+  ci_env_created=true
+fi
 docker build -f deploy/cloud-synthetic/Dockerfile -t companyagent:public-demo-ci .
+docker run --rm --entrypoint /bin/sh companyagent:public-demo-ci -c 'test ! -e /app/deploy/public-demo/.env'
+echo "PUBLIC_DEMO_IMAGE_SECRET_EXCLUSION=PASS"
 docker network create --internal "$network" >/dev/null
 docker network create "$edge" >/dev/null
 hash="$(docker run --rm caddy:2.10.2-alpine caddy hash-password --plaintext 'ci-synthetic-password-only')"
