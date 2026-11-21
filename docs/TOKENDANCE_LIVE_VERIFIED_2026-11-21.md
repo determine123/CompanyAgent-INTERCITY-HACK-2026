@@ -16,7 +16,7 @@ Tools=inspect_coverage,inspect_inventory,select_budget_scenario
 ```
 
 - GitHub artifact：`tokendance-synthetic-live-evidence`，artifact ID `14703494776`，已成功上传，保留 7 天
-- 脱敏证据检查：`transport=live_chat_completions_tool_calling`、`verification_status=tool_calls_executed`、`tool_call_count>=1`、只读工具名单校验通过
+- 脱敏证据文件已下载并解析：`transport=live_chat_completions_tool_calling`、`verification_status=tool_calls_executed`、`tool_call_count=3`、`budget_scenario=200`，只读工具名单校验通过
 - 不涉及公司内部 API、真实广告库存、2027 实际可售、正式报价、商业锁位或任何写操作
 
 ## 先前尝试与分析
