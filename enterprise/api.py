@@ -15,6 +15,7 @@ from .proposal import render_proposal
 from .reliability import create_manifest, evaluation, replay, plan_fingerprint
 from .bridge import reconcile
 from .model_tools import run_model_tools, ModelError, MODEL as B1X_MODEL
+from .provider_config import provider_name, provider_configured
 from .failure_learning import record_failure
 from .change_workflow import analyze_change, CHANGE_TYPES
 
@@ -343,7 +344,7 @@ def bounded_tool_calling(request:Request,run_id:int,data:ToolCallingRequest):
     """Model chooses read-only, aggregate-only tools; business result is immutable."""
     who=req_actor(request)
     run=_run_for_view(run_id,who)
-    if not data.external_consent:raise HTTPException(412,'必须明确同意仅将聚合数据发送给 B1X')
+    if not data.external_consent:raise HTTPException(412,'必须明确同意仅将聚合数据发送给当前选定的外部模型服务商')
     result=json.loads(run['result_json'])
     # Tool grants come from the frozen run manifest, not from user-controlled input.
     manifest=result.get('replay_manifest') or {}
@@ -362,7 +363,7 @@ def bounded_tool_calling(request:Request,run_id:int,data:ToolCallingRequest):
     except ModelError as exc:
         reason=str(exc)
         # No secret or raw request is copied into failure metadata.
-        code='MODEL_NOT_CONFIGURED' if 'B1X_API_KEY' in reason else 'MODEL_TOOL_REJECTED'
+        code='MODEL_NOT_CONFIGURED' if any(key in reason for key in ('B1X_API_KEY','TOKENDANCE_API_KEY','TOKENDANCE_MODEL')) else 'MODEL_TOOL_REJECTED'
         sid=next((x['id'] for x in manifest['skills'] if x['id']),None)
         fid=record_failure(who['id'],run['agent_id'],run_id,sid,code,reason)
         audit(who['id'],'model_tool_failed',f'run={run_id};code={code};failure={fid}')
@@ -674,6 +675,8 @@ def status(request:Request):
     return {'counts':cnt,'import_folder':str(STATE/'imports'),'allowed_hosts':os.getenv('COMPANYAGENT_ALLOWED_DATA_HOSTS',''),
             'automated_sync':os.getenv('COMPANYAGENT_AUTO_SYNC')=='true',
             'model_configured':bool(os.getenv('B1X_API_KEY','').strip()),
+            'tool_model_provider':provider_name(),
+            'tool_model_configured':provider_configured(),
             'limits':['单组织本地MVP，不具备多租户隔离与单点登录','不自动绕过红豆或大数据平台验证码','2027实际可售需业务系统核验']}
 
 _daemon_started=False
