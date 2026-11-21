@@ -159,23 +159,47 @@ bootstrap();
 
 
 // Competition customer-facing workflow: reuses the audited enterprise Agent Run.
+function clientImpactInputs(){
+ const read=id=>$(id).value.trim();
+ const baseline=read('clientManualBaseline'),review=read('clientReviewMinutes'),rework=read('clientReworkMinutes');
+ if(!baseline||!review||!rework)throw new Error('填写人工基线、AI 人工复核和返工耗时；没有返工请填 0');
+ const nums=[baseline,review,rework].map(Number);
+ if(nums.some(x=>!Number.isFinite(x)||x<0||x>1440)||nums[0]<=0)throw new Error('工时必须为 0–1440 分钟；人工基线须大于零');
+ const m=read('clientManualErrors'),a=read('clientAiErrors');
+ if(Boolean(m)!==Boolean(a))throw new Error('错误数需要两边都填，或都不填');
+ if([m,a].some(x=>x&&!/^(0|[1-9][0-9]*)$/.test(x)))throw new Error('错误数须为 0–100 的整数');
+ if([m,a].some(x=>x&&Number(x)>100))throw new Error('错误数不能超过 100');
+ return {
+   manual_minutes:nums[0],generation_minutes:state.lastClientDurationMs/60000,
+   review_minutes:nums[1],rework_minutes:nums[2],
+   manual_errors:m===''?null:Number(m),assistant_errors:a===''?null:Number(a),
+   comparable_scope:$('clientComparable').checked,
+   evidence_attested:$('clientEvidenceAttested').checked
+ };
+}
 function renderEfficiency(){
  const duration=state.lastClientDurationMs;
  if(duration===undefined)return;
- $('clientLatency').textContent='本次从提交到方案返回：'+(duration/1000).toFixed(2)+' 秒（含网络；不含人工复核）';
- const base=$('clientManualBaseline').value.trim();
- const review=$('clientReviewMinutes').value.trim();
- if(base===''||review===''){
-   $('clientEfficiency').textContent='待填：企业相似案例人工用时 + 本次人工复核用时。仅测得页面响应时间，不能推断真实降本。';
-   return;
- }
- const b=Number(base),r=Number(review);
- if(!Number.isFinite(b)||!Number.isFinite(r)||b<=0||r<0){
-   $('clientEfficiency').textContent='请填写非负的实测工时；人工基线必须大于零。';
-   return;
- }
- const delta=b-r-duration/60000;
- $('clientEfficiency').textContent='根据手工填写数据的单案例工时差：'+(delta>=0?'节约 ':'增加 ')+Math.abs(delta).toFixed(2)+' 分钟；仅用于内部对照，需核实相同任务复杂度、样本量及实际审查耗时，不能据此宣称企业总体 ROI。';
+ $('clientLatency').textContent='本次客户提案从提交到返回：'+(duration/1000).toFixed(2)+' 秒（含网络，不含复核/返工）';
+ try{
+   const x=clientImpactInputs(), total=x.generation_minutes+x.review_minutes+x.rework_minutes;
+   const delta=x.manual_minutes-total;
+   $('clientEfficiency').textContent='本案例自报对照：AI+人工总计 '+total.toFixed(2)+' 分钟（生成+复核+返工），'+(delta>=0?'较人工少 ':'较人工多 ')+Math.abs(delta).toFixed(2)+' 分钟。'+
+    (x.comparable_scope&&x.evidence_attested?'已勾选同范围与自报证据；仍需企业独立审核。':'范围/证据未核对，不可比较，更不能声称 ROI。');
+ }catch(e){$('clientEfficiency').textContent=e.message+'。未完成数据不能推断真实节省。'}
+}
+async function saveClientImpact(){
+ const rid=state.lastRun?.run_id;
+ if(!rid||state.lastClientDurationMs===undefined){toast('先在本页面生成一份客户提案');return}
+ const button=$('clientImpactSave');
+ try{
+   const data=clientImpactInputs();
+   button.disabled=true;
+   const result=await api('/runs/'+rid+'/impact-measurement','POST',data);
+   const report=result.report;
+   $('clientImpactSaved').textContent='Run #'+rid+' 已记录自报数据 · '+report.status+' · 时间差 '+report.delta_minutes+' 分钟 · 错误差 '+(report.error_delta??'未提供')+'；不构成企业总体 ROI 证明。';
+   toast('已保存单案例自报数据，审计可追踪');
+ }catch(e){toast(e.message)}finally{button.disabled=false}
 }
 async function generateClientProposal(){
  const b=$('clientGenerate');b.disabled=true;b.textContent='正在分析授权数据和预算约束…';
@@ -199,8 +223,11 @@ async function generateClientProposal(){
    for(const [field,label] of [['business_goal','客户生意目标'],['target_audience','目标人群'],['success_kpi','成功衡量 KPI'],['measurement_method','KPI 核验方式']]){
      if(!payload[field])throw new Error('Campaign 假设书缺少：'+label);
    }
+  const submittedAt=performance.now();
   const r=await api('/runs','POST',payload);
+  state.lastClientDurationMs=Math.max(0,performance.now()-submittedAt);
   state.lastRun=r;
+  $('clientImpactSaved').textContent='新 Run #'+r.run_id+' 尚未保存效率证据；需要重新核对该案例。';
   runHtml(r); // Same verified result is also visible in original task studio.
   renderClientProposal(r);
   renderEfficiency();
@@ -245,6 +272,12 @@ async function analyzeClientChange(){
 $('clientGenerate').onclick=generateClientProposal;
 $('clientManualBaseline').oninput=renderEfficiency;
 $('clientReviewMinutes').oninput=renderEfficiency;
+$('clientReworkMinutes').oninput=renderEfficiency;
+$('clientManualErrors').oninput=renderEfficiency;
+$('clientAiErrors').oninput=renderEfficiency;
+$('clientComparable').onchange=renderEfficiency;
+$('clientEvidenceAttested').onchange=renderEfficiency;
+$('clientImpactSave').onclick=saveClientImpact;
 $('changeAnalyze').onclick=analyzeClientChange;
 $('clientExport').onclick=()=>{
  if(!state.lastRun?.run_id){toast('请先生成方案');return}
