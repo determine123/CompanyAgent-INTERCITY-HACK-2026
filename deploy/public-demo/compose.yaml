@@ -10,6 +10,7 @@ services:
     environment:
       COMPANYAGENT_DEPLOYMENT_MODE: cloud_synthetic
       COMPANYAGENT_AUTO_SYNC: "false"
+      COMPANYAGENT_COOKIE_SECURE: "true"
       COMPANYAGENT_ALLOWED_DATA_HOSTS: ""
       COMPANYAGENT_REAL_DATA_ENABLED: "false"
       COMPANYAGENT_ADMIN_PASSWORD: ${PUBLIC_DEMO_APP_PASSWORD:?Set a distinct app password in the local env file}
