@@ -7,6 +7,13 @@
 
 > 愿景：企业员工只需要描述要解决的问题，平台就能帮助搭建岗位 Agent/Skill、使用授权数据执行任务，并根据结果反馈持续改进。**先解决问题，再证明改进有效。**
 
+## v1.7 · Railway 原生公网合成演示镜像
+
+- 仓库根目录 `Dockerfile` 已由**原先直接公开 FastAPI 8765 的不安全配置**替换为单容器 Caddy Basic Auth + 回环 FastAPI。Railway 平台负责公网 HTTPS 和 `PORT`，Caddy 负责用户名/密码入口，后端只监听 `127.0.0.1:8765`。公网仍采用 `cloud_synthetic`：食品饮料单行业，禁止红豆/IMDS 企业真实数据、模型 Key、旧版 API 和数据导入。
+- 新增独立 `/__railway/health`（最小匿名健康状态），其余路由均需要 Basic Auth，应用再进行自身登录；没有密钥或尝试切换生产模式时拒绝启动。使用非 root 镜像，演示数据临时存储。
+- [Railway 上线操作手册](deploy/railway/README.md)、[独立 Docker 验收脚本](scripts/railway_synthetic_smoke.sh) 与 [专用 CI](.github/workflows/railway-synthetic.yml) 已提供。**目前仅验证了镜像与认证链路，未创建 Railway 云项目、获取公网域名或发生付费部署。**
+- Railway 新服务请直接连接 GitHub `main` 根目录 Dockerfile，不要套用旧版 VPS 的 Docker Compose。Railway 账号与加密 Variables 需要由所有者授权连接，未授权不能远程发布。
+
 ## v1.6 · 公网合成演示入口 / 食品饮料行业 / 红豆企业试点
 
 - **公网演示配置**：新增 [Caddy HTTPS + Basic Auth 网关](deploy/public-demo/README.md) 与 Docker Compose。后端无 host-published `8765`，在 Docker 私有网络以非 root、只读根文件系统运行；仅供合成数据演示，不是生产部署。需自行准备 VPS、真实域名、DNS、两层独立认证及云侧入站规则；**当前仓库没有实际公网访问地址，也未代为开通云主机**。
