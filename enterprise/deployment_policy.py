@@ -18,6 +18,7 @@ BLOCKED_MUTATIONS = frozenset({
     "/enterprise/api/sources",
     "/enterprise/api/sources/poll-folder",
     "/enterprise/api/data/bridge/reconcile",
+    "/enterprise/api/users",
 })
 
 def deployment_mode(env=None):
@@ -47,9 +48,11 @@ def forbidden_cloud_request(path, method="GET", env=None):
         return False
     if path == "/api" or path.startswith("/api/"):
         return True
-    if path in BLOCKED_MUTATIONS:
+    if path in BLOCKED_MUTATIONS and method.upper() != "GET":
         return True
     if path.startswith("/enterprise/api/sources/") and path.endswith("/sync"):
+        return True
+    if path.startswith("/enterprise/api/agents/") and path.endswith("/benchmark"):
         return True
     # Cloud-synthetic is not a public enterprise API for arbitrary source uploads.
     return False

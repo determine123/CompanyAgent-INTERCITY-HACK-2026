@@ -1,0 +1,27 @@
+name: Public synthetic HTTPS gateway boundaries
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/public-demo/**'
+      - 'scripts/public_demo_gateway_smoke.sh'
+      - 'scripts/public_demo_config_preflight.py'
+      - 'enterprise/deployment_policy.py'
+      - 'enterprise/api.py'
+      - 'enterprise/hongdou_contract.py'
+      - 'tests/test_public_demo_v16.py'
+      - 'tests/test_hongdou_contract_v16.py'
+      - '.github/workflows/public-demo-gateway.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  public-gateway-negative-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify Basic Auth, private Docker backend, and blocked routes
+        run: bash scripts/public_demo_gateway_smoke.sh

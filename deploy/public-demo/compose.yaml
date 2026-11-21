@@ -1,0 +1,57 @@
+# Public HTTPS edge only; this is NOT a production deployment.
+# Requires environment variables from a LOCAL UNTRACKED file:
+# docker compose --env-file deploy/public-demo/.env -f deploy/public-demo/compose.yaml up -d --build
+services:
+  companyagent:
+    build:
+      context: ../..
+      dockerfile: deploy/cloud-synthetic/Dockerfile
+    restart: unless-stopped
+    environment:
+      COMPANYAGENT_DEPLOYMENT_MODE: cloud_synthetic
+      COMPANYAGENT_AUTO_SYNC: "false"
+      COMPANYAGENT_COOKIE_SECURE: "true"
+      COMPANYAGENT_ALLOWED_DATA_HOSTS: ""
+      COMPANYAGENT_REAL_DATA_ENABLED: "false"
+      COMPANYAGENT_ADMIN_PASSWORD: ${PUBLIC_DEMO_APP_PASSWORD:?Set a distinct app password in the local env file}
+      HOST: "0.0.0.0"
+      PORT: "8765"
+      COMPANYAGENT_RUNTIME_DIR: /app/runtime
+    read_only: true
+    tmpfs:
+      - /app/runtime:rw,noexec,nosuid,size=32m,uid=10001,gid=10001
+      - /tmp:rw,noexec,nosuid,size=16m,uid=10001,gid=10001
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    pids_limit: 128
+    mem_limit: 512m
+    networks: [backend]
+    # Intentionally NO ports, no host socket, no AWS/TokenDance/RedBean secrets.
+
+  caddy:
+    image: caddy:2.10.2-alpine
+    restart: unless-stopped
+    depends_on: [companyagent]
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      PUBLIC_DEMO_DOMAIN: ${PUBLIC_DEMO_DOMAIN:?Set a DNS hostname that points to this VPS}
+      PUBLIC_DEMO_USER: ${PUBLIC_DEMO_USER:?Set the public demo gateway user}
+      PUBLIC_DEMO_BCRYPT_HASH: ${PUBLIC_DEMO_BCRYPT_HASH:?Set a bcrypt hash, not plain text}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    networks: [edge, backend]
+
+networks:
+  edge: {}
+  backend:
+    internal: true
+volumes:
+  caddy_data: {}
+  caddy_config: {}

@@ -16,6 +16,7 @@ from .reliability import create_manifest, evaluation, replay, plan_fingerprint
 from .bridge import reconcile
 from .model_tools import run_model_tools, ModelError, MODEL as B1X_MODEL
 from .provider_config import provider_name, provider_configured
+from .deployment_policy import deployment_mode
 from .failure_learning import record_failure
 from .change_workflow import analyze_change, CHANGE_TYPES
 
@@ -400,6 +401,8 @@ def model_trace(request:Request,run_id:int):
 @router.post('/runs')
 def run_task(request:Request,data:Task):
     who=req_actor(request)
+    if deployment_mode() == 'cloud_synthetic' and data.industry != '食品饮料':
+        raise HTTPException(400,'公网合成演示仅支持食品饮料行业')
     with db() as c:
         ag=c.execute('SELECT * FROM agents WHERE id=?',(data.agent_id,)).fetchone()
         if not allowed(ag,who):raise HTTPException(403,'Agent不存在或无权访问')
@@ -675,6 +678,10 @@ def status(request:Request):
     return {'counts':cnt,'import_folder':str(STATE/'imports'),'allowed_hosts':os.getenv('COMPANYAGENT_ALLOWED_DATA_HOSTS',''),
             'automated_sync':os.getenv('COMPANYAGENT_AUTO_SYNC')=='true',
             'model_configured':bool(os.getenv('B1X_API_KEY','').strip()),
+            'deployment_mode':deployment_mode(),
+            'fixed_industry':'食品饮料' if deployment_mode()=='cloud_synthetic' else None,
+            'visual_coverage_api_available':False,
+            'hongdou_real_api_connected':False,
             'tool_model_provider':provider_name(),
             'tool_model_configured':provider_configured(),
             'limits':['单组织本地MVP，不具备多租户隔离与单点登录','不自动绕过红豆或大数据平台验证码','2027实际可售需业务系统核验']}
