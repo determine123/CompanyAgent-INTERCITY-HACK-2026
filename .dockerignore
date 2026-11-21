@@ -6,3 +6,15 @@ __pycache__/
 .env.*
 .git/
 *.zip
+
+# Do not include any enterprise/customer or historical contest data in images.
+data/contest_private/
+docs/cloud-test/
+docs/SOURCE_MANIFEST.json
+*.sqlite3
+*.sqlite3-wal
+*.sqlite3-shm
+**/FIRST_LOGIN.txt
+*.pem
+*.p12
+*.pfx

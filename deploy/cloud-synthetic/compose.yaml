@@ -1,0 +1,27 @@
+# Local or GitHub-runner sandbox. Never bind port to 0.0.0.0 on the host.
+# No real business files, tokens, cloud IAM credentials or company API URLs.
+services:
+  companyagent-synthetic:
+    build:
+      context: ../..
+      dockerfile: deploy/cloud-synthetic/Dockerfile
+    environment:
+      COMPANYAGENT_DEPLOYMENT_MODE: cloud_synthetic
+      COMPANYAGENT_AUTO_SYNC: "false"
+      COMPANYAGENT_ALLOWED_DATA_HOSTS: ""
+      HOST: "0.0.0.0"
+      PORT: "8765"
+      COMPANYAGENT_RUNTIME_DIR: /app/runtime
+    ports:
+      - "127.0.0.1:18765:8765"
+    read_only: true
+    tmpfs:
+      - /app/runtime:rw,noexec,nosuid,size=32m,uid=10001,gid=10001
+      - /tmp:rw,noexec,nosuid,size=16m,uid=10001,gid=10001
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 128
+    mem_limit: 512m
+    restart: "no"

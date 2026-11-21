@@ -14,6 +14,10 @@ from src.operations import execution_review
 from src.coverage import parse_coverage, join_coverage, coverage_rows_from_bytes
 from src.preflight import assess
 
+from enterprise.deployment_policy import validate_deployment, deployment_mode, forbidden_cloud_request
+
+# Fail closed before creating database, initial-admin credentials, or registering routes.
+validate_deployment()
 ROOT = Path(__file__).resolve().parent
 app = FastAPI(title="CompanyAgent Hackathon MVP", version="1.3.0")
 
@@ -47,6 +51,17 @@ class AiInput(BaseModel):
     industry: str
     brief: str = ""
     summary: dict[str, Any]
+
+@app.middleware("http")
+async def cloud_synthetic_boundary(request, call_next):
+    if forbidden_cloud_request(request.url.path, request.method):
+        return JSONResponse(status_code=403, content={"detail": "cloud_synthetic 禁止未认证比赛 API 与企业数据导入"})
+    return await call_next(request)
+
+@app.get("/healthz")
+def minimal_readiness():
+    # Safe for private ingress/load balancer: never reveals credential or dataset state.
+    return {"ok": True, "mode": deployment_mode(), "production_ready": False}
 
 @app.get("/api/health")
 def health():

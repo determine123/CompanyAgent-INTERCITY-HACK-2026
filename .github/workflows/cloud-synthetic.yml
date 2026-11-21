@@ -1,0 +1,29 @@
+name: Cloud synthetic container security smoke
+on:
+  push:
+    paths:
+      - 'deploy/cloud-synthetic/**'
+      - 'scripts/cloud_synthetic_smoke.sh'
+      - 'enterprise/deployment_policy.py'
+      - 'server.py'
+      - '.dockerignore'
+      - '.github/workflows/cloud-synthetic.yml'
+  pull_request:
+    paths:
+      - 'deploy/cloud-synthetic/**'
+      - 'scripts/cloud_synthetic_smoke.sh'
+      - 'enterprise/deployment_policy.py'
+      - 'server.py'
+      - '.dockerignore'
+      - '.github/workflows/cloud-synthetic.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cloud-synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run ephemeral non-root Docker sandbox and negative HTTP checks
+        run: bash scripts/cloud_synthetic_smoke.sh
