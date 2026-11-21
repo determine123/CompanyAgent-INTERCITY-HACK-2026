@@ -3,6 +3,7 @@ name: Railway synthetic private/public gateway smoke
 on:
   pull_request:
     paths:
+      - 'Dockerfile'
       - 'deploy/railway/**'
       - 'enterprise/deployment_policy.py'
       - 'scripts/railway_synthetic_smoke.sh'

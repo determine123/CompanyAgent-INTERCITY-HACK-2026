@@ -27,6 +27,8 @@ Railway 官方提供 GitHub 构建 Dockerfile、私网 `<service>.railway.intern
 - https://docs.railway.com/networking/private-networking
 - https://docs.railway.com/networking/public-networking
 
+**安全默认值：** 仓库根目录 `Dockerfile` 现在只构建 Caddy 认证网关，不再运行未经认证的 FastAPI。如果你在 Railway 的首次 GitHub 部署中忘记填写 `RAILWAY_DOCKERFILE_PATH`，默认只会得到网关镜像，而不会错误地将企业工作台后端直接暴露公网。正式配置仍须明确选择以下两个 Dockerfile；不要把默认根镜像误当已完整部署的服务。
+
 ## 1. 创建项目和后端私有服务
 
 在 https://railway.com/dashboard 登录，**New Project** → **Deploy from GitHub repo** → 选择：

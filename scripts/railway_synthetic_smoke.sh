@@ -16,6 +16,14 @@ cleanup(){
 trap cleanup EXIT
 docker build -f deploy/railway/backend.Dockerfile -t companyagent:railway-private-ci .
 docker build -f deploy/railway/gateway.Dockerfile -t companyagent:railway-gateway-ci .
+# Fail-safe default: selecting the repo-root Dockerfile must build ONLY the
+# authenticated gateway, never the unauthenticated FastAPI service.
+docker build -f Dockerfile -t companyagent:railway-default-ci .
+docker run --rm --entrypoint /bin/sh companyagent:railway-default-ci \
+  -c 'test -f /etc/caddy/Caddyfile && test ! -f /app/server.py'
+docker image inspect -f '{{json .Config.ExposedPorts}}' companyagent:railway-default-ci | \
+  grep -q '8080/tcp'
+echo "RAILWAY_DEFAULT_ROOT_IMAGE=GATEWAY_ONLY_PASS"
 docker network create --internal "$private" >/dev/null
 docker network create "$edge" >/dev/null
 fake_pass="synthetic-railway-demo-secret-for-ci"
