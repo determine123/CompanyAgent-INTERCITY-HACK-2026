@@ -33,6 +33,10 @@
             <div class="welcome" id="clientEmpty"><div class="orb">✦</div><h3>把需求变成可解释方案</h3><p>系统将筛选媒体、执行预算优化，并给出数据依据、风险清单和下一步人工核验事项。</p></div>
             <div class="hidden" id="clientProposal"><div class="result-banner"><small>REVIEWABLE DRAFT · NOT A BOOKING</small><h3 id="clientTitle">—</h3><p id="clientIntro">—</p></div>
               <div class="client-kpis"><div><small>参考预算使用</small><strong id="clientSpent">—</strong></div><div><small>候选媒体</small><strong id="clientCount">—</strong></div><div><small>证据覆盖</small><strong id="clientEvidence">—</strong></div></div>
+              <h3 class="subhead">效率验证 · 不编造 ROI</h3>
+              <div class="info-strip" id="clientLatency">本次生成响应耗时：尚未测量</div>
+              <div class="pair"><div><label>企业相似提案人工耗时（分钟，选填）</label><input id="clientManualBaseline" type="number" min="0" step="0.1" placeholder="企业实测后填写"></div><div><label>本次人工审查耗时（分钟，选填）</label><input id="clientReviewMinutes" type="number" min="0" step="0.1" placeholder="企业实测后填写"></div></div>
+              <div id="clientEfficiency" class="micro">尚无双方完整工时数据：不能声称已经节省人时或成本。</div>
               <h3 class="subhead">一页式 Campaign 假设书</h3><div id="clientHypothesisStatus" class="info-strip">生成后核对七要素</div><div id="clientHypothesisRows" class="client-warnings"></div>
               <h3 class="subhead">预算变化与增减媒介</h3><div id="clientScenarioRows" class="client-warnings">100 / 200 / 500 万元将从同一库存快照分别计算</div>
               <h3 class="subhead">候选媒体清单</h3><div class="client-table-wrap"><table class="client-table"><thead><tr><th>媒体</th><th>数量</th><th>参考万元</th><th>覆盖证据</th></tr></thead><tbody id="clientRows"></tbody></table></div>
