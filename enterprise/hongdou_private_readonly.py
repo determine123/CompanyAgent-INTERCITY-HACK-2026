@@ -15,7 +15,7 @@ import datetime as dt
 import json
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Callable
 from urllib.parse import urlsplit
 import httpx
@@ -57,7 +57,7 @@ class PrivateServiceConfig:
     bus_path: str
     metro_path: str
     tenant_id: str
-    bearer_token: str
+    bearer_token: str = field(repr=False)
 
     @staticmethod
     def from_env(env=None):
@@ -71,6 +71,21 @@ class PrivateServiceConfig:
             bearer_token=e.get("HONGDOU_PRIVATE_BEARER_TOKEN",""),
         )
 
+    def authorization_header(self) -> str:
+        """Accept a bare token or the exact F12 Authorization header value.
+
+        Normalize to one Bearer prefix, never leak the value through repr/errors.
+        Reject placeholders, duplicated schemes and whitespace injection.
+        """
+        value=self.bearer_token
+        if not isinstance(value,str) or not 1 <= len(value) <= 4096:
+            raise HongdouPilotDenied("Private token invalid or missing")
+        if value.lower().startswith("bearer "):
+            value=value[7:]
+        if not re.fullmatch(r"[A-Za-z0-9._~+/-]+={0,}",value):
+            raise HongdouPilotDenied("Private bearer format invalid or placeholder")
+        return "Bearer "+value
+
     def validate(self):
         u=urlsplit(self.origin)
         if (u.scheme!="https" or not u.hostname or u.hostname!=self.approved_host
@@ -79,8 +94,7 @@ class PrivateServiceConfig:
             raise HongdouPilotDenied("Private endpoint must be exact approved HTTPS host/port")
         if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9-]{0,63}",self.tenant_id):
             raise HongdouPilotDenied("Tenant ID invalid")
-        if not self.bearer_token or len(self.bearer_token)>4096 or any(ord(ch)<33 for ch in self.bearer_token):
-            raise HongdouPilotDenied("Private token invalid")
+        self.authorization_header()  # Never log, return, or store this header in reports.
         for kind,path in (("bus",self.bus_path),("metro",self.metro_path)):
             if (not re.fullmatch(r"/[A-Za-z0-9/_-]{1,180}",path)
                 or "//" in path or ".." in path
@@ -117,7 +131,7 @@ def inspect_private_inventory(kind:str, *, start_date:str,end_date:str,
                       page_no=page_no,page_size=page_size,line_name=line_name,keyword=keyword)
     path=config.bus_path if kind=="bus" else config.metro_path
     url=config.origin.rstrip("/")+path
-    headers={"Authorization":"Bearer "+config.bearer_token,
+    headers={"Authorization":config.authorization_header(),
              "tenant-id":config.tenant_id,"Accept":"application/json"}
     try:
         with httpx.Client(transport=transport,verify=True,trust_env=False,
