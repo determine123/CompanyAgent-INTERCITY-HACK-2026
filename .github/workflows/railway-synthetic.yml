@@ -1,0 +1,23 @@
+name: Railway synthetic private/public gateway smoke
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/railway/**'
+      - 'enterprise/deployment_policy.py'
+      - 'scripts/railway_synthetic_smoke.sh'
+      - 'tests/test_railway_demo_v17.py'
+      - '.github/workflows/railway-synthetic.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  railway-shape-docker-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Emulate Railway private backend and auth gateway using Docker
+        run: bash scripts/railway_synthetic_smoke.sh
