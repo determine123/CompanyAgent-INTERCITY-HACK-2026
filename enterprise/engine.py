@@ -124,7 +124,12 @@ def perform(req,agent,skills,inventory,coverage,source_desc,prices=None,policy=N
                    "调整预算后重新计算组合，不只是改页面数字。")
         step('explain_plan','已生成规则驱动的可解释方案；未调用外部大模型')
     else: rationale='预算及媒体组合由确定性优化器生成；本Agent未授权策略解读工具。'
-    return {'plan':plan,'budget_variants':budget_variants,'brief_analysis':parsed,'trace':steps,'rationale':rationale,'alerts':suggestions,
+    hypothesis=build_hypothesis(req,plan)
+    if not hypothesis['complete']:
+        suggestions.append('Campaign 假设书尚缺 '+str(len(hypothesis['missing']))+' 项；应补齐明确的生意目标、主目标、人群和 KPI 证明，再提交企业审核')
+    return {'plan':plan,'budget_variants':budget_variants,'campaign_hypothesis':hypothesis,
+            'scenario_changes':scenario_changes(budget_variants),
+            'brief_analysis':parsed,'trace':steps,'rationale':rationale,'alerts':suggestions,
             'agent_policy_notes':[str(agent['instructions'])[:1200]]+[str(s['instructions'])[:1200] for s in skills],
             'execution':execution,'data_sources':source_desc,'mode':'tool_orchestrated_rule_agent',
             'ai_model_used':False,'quality':quality,'finished_at':now()}
