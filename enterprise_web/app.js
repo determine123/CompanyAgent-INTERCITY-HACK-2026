@@ -166,11 +166,19 @@ async function generateClientProposal(){
    industry:$('clientIndustry').value,budget_wan:Number($('clientBudget').value),
    start_date:$('clientDate').value,weeks:Number($('clientWeeks').value),
    landmark:$('clientPlace').value,medium:$('clientMedium').value,
-   coverage_only:$('clientCoverage').checked};
+   coverage_only:$('clientCoverage').checked,
+   business_goal:$('clientBusinessGoal').value.trim(),
+   campaign_goal:$('clientCampaignGoal').value,
+   target_audience:$('clientAudience').value.trim(),
+   success_kpi:$('clientKpi').value.trim(),
+   measurement_method:$('clientMeasurement').value.trim()};
   if(!payload.agent_id)throw new Error('请先选择有权使用的 Agent');
   if(!payload.brand)throw new Error('请填写目标品牌');
   if(!payload.brief)throw new Error('请填写客户 Brief');
   if(!payload.start_date.startsWith('2027-'))throw new Error('投放档期必须为2027年');
+   for(const [field,label] of [['business_goal','客户生意目标'],['target_audience','目标人群'],['success_kpi','成功衡量 KPI'],['measurement_method','KPI 核验方式']]){
+     if(!payload[field])throw new Error('Campaign 假设书缺少：'+label);
+   }
   const r=await api('/runs','POST',payload);
   state.lastRun=r;
   runHtml(r); // Same verified result is also visible in original task studio.
@@ -186,6 +194,10 @@ function renderClientProposal(r){
  $('clientRunState').textContent='Run #'+r.run_id+' · '+(q.status||'需复核');
  $('clientTitle').textContent=(p.brand||'客户')+' · '+(p.focus_landmark||'上海')+'媒体投放提案';
  $('clientIntro').textContent=r.rationale||'基于当前授权数据和规则给出参考候选';
+ const hypo=r.campaign_hypothesis||{};
+ $('clientHypothesisStatus').textContent='赛题七要素 '+(hypo.completed??0)+' / '+(hypo.required??7)+'；'+(hypo.complete?'已填写，仍需客户确认':'缺失要素必须补齐');
+ $('clientHypothesisRows').innerHTML=(hypo.elements||[]).map(e=>'<p>'+ (e.complete?'✓ ':'⚑ ')+'<b>'+E(e.label)+'</b>：'+E(e.value)+'</p>').join('');
+ $('clientScenarioRows').innerHTML=(r.scenario_changes||[]).map(e=>'<p><b>'+E(e.budget_wan)+' 万</b> → 参考 '+E(e.spent_wan)+' 万；'+E(e.item_count)+' 项 / '+E(e.unit_count)+' 单元；'+(e.added_vs_prior_units===null?'基准方案':'较前一档新增 '+E(e.added_vs_prior_units)+' 单元，减少 '+E(e.removed_vs_prior_units)+' 单元')+'</p>').join('');
  $('clientSpent').textContent=(p.spent_wan??0)+' 万 / '+p.budget_wan+' 万';
  $('clientCount').textContent=rows.length+' 项';
  $('clientEvidence').textContent=(q.evidence?.coverage_pct??0)+'%';
