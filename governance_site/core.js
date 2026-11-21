@@ -53,9 +53,12 @@ gates:[
  {gate:'网络隔离与权限门禁',criteria:'最小权限、出口白名单、零内网直连、敏感信息负向测试',status:'未通过',failure:'企业内部 API 尚未获授权',rollback:'任何越权/密钥泄露立即禁用连接',evidence:'缺授权、流量与审计记录',state:'待验证'},
  {gate:'IAH / MCP 端到端门禁',criteria:'授权、租户隔离、幂等、超时、错误映射及审计全通过',status:'待验证',failure:'仅有设计及 PoC 记录',rollback:'接口不健康即停止提交，保留人工审核',evidence:'待提供测试执行 ID',state:'待验证'},
  {gate:'IMDS 真实数据门禁',criteria:'规则映射、异常分支、万行性能及人工复核逐项留证',status:'待验证',failure:'当前只掌握合成测试历史记录',rollback:'需要人工复核的结果不可自动 Approve / Reject',evidence:'待测试包/人工样例',state:'待验证'},
- {gate:'模型 Tool Calling 实联调',criteria:'授权 API Key + 有效模型返回 + 白名单工具审计轨迹',status:'待验证',failure:'暂无授权模型密钥与真实在线联调凭证',rollback:'超权限/非法参数/模型异常一律拒绝并回退确定性方案',evidence:'v1.2/1.3 使用 MockTransport 合成协议回归',state:'待验证'}],
+ {gate:'模型 Tool Calling 实联调（合成数据）',criteria:'授权 TokenDance API Key + 实际 tool_calls + 三类只读工具',status:'通过',failure:'deepseek-v3.2 曾 HTTP 403，原因未确定；glm-5.2 已通过',rollback:'超权限/非法参数/模型异常一律拒绝并回退确定性方案',evidence:'GitHub Actions #44896062819，glm-5.2 实网 3 tools，脱敏 artifact #14703494776',state:'已核实'},
+ {gate:'云端合成镜像与隔离',criteria:'非 root 镜像、回环绑定、旧版 API 禁用、无企业 Key/数据',status:'通过',failure:'仅 GitHub Runner 单次容器验证；AWS 企业网络尚未部署',rollback:'任意公开端口或企业凭据注入即拒绝启动',evidence:'Cloud synthetic container smoke #44896850328；不等于 AWS 生产验收',state:'已核实'},
+ {gate:'企业真实数据接入审批',criteria:'数据所有者+安全负责人审批、数据范围、留存与审计',status:'未通过',failure:'无真实数据授权、企业 SSO 与租户隔离证据',rollback:'不得上传/同步真实企业数据；转离线校验与人工审批',evidence:'enterprise/ingress_review.py 仅校验离线摘要，不进行实际写入',state:'待验证'}],
 migration:[
  {task:'冻结 OpenClaw 任务清单与依赖',phase:'准备',status:'进行中',owner:'迁移负责人',failure:'任务/密钥/网络依赖尚未完整盘点',rollback:'原运行环境与调度配置保持可恢复',acceptance:'清单审签；Cron / API / 内网依赖分类',state:'待验证'},
+ {task:'GitHub 云端合成容器验证',phase:'Cloud CI 验证',status:'已完成（合成数据）',owner:'项目 CI',failure:'尚无实际 AWS VPC 资源与真实业务负载',rollback:'不对公网开放，变更不通过即销毁临时容器',acceptance:'Cloud synthetic Docker smoke #44896850328，旧 API 和导入入口返回403',state:'已核实'},
  {task:'Lightsail 北美公开任务试点',phase:'公开任务试点',status:'未开始',owner:'云平台负责人',failure:'主机/网络/成本实测待安排',rollback:'失败即恢复旧 Cron，避免双活重复执行',acceptance:'真实连续运行与对照日志',state:'规划能力'},
  {task:'CompanyAgent / Hermes Shadow Mode',phase:'双轨验证',status:'未开始',owner:'Agent 平台负责人',failure:'尚未达到治理负向门禁',rollback:'禁写与流量切回 OpenClaw',acceptance:'同输入同结果；工具权限与审计匹配',state:'规划能力'},
  {task:'公司内部 API 接入',phase:'独立隔离验收',status:'阻断',owner:'企业安全责任人',failure:'没有正式网络及数据访问授权',rollback:'默认保持未连接；撤销临时凭证',acceptance:'授权审批、隔离测试、审计、应急预案完整',state:'待验证'}],
