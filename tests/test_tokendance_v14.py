@@ -151,3 +151,31 @@ def test_exhausted_model_turns_do_not_fake_completion(monkeypatch):
     with pytest.raises(ModelError, match="限定轮数"):
         run_model_tools(synthetic_run(), {"inspect_inventory"},
                         transport=httpx.MockTransport(always_tool), max_steps=2)
+
+
+@pytest.mark.parametrize("status,expected", [
+    (400, "HTTP 400"), (401, "HTTP 401"), (402, "HTTP 402"),
+    (403, "HTTP 403"), (404, "HTTP 404"), (422, "HTTP 422"),
+    (429, "HTTP 429"), (503, "HTTP 503"),
+])
+def test_live_gateway_errors_categorized_without_secret_or_body(monkeypatch, status, expected):
+    configure(monkeypatch)
+    sentinel = "TOP_SECRET_VALUE_SHOULD_NOT_BE_LOGGED"
+    def reject(req):
+        return httpx.Response(status, json={"error": {"message": sentinel}})
+    with pytest.raises(ModelError) as exc:
+        run_model_tools(synthetic_run(), {"inspect_inventory"},
+                        transport=httpx.MockTransport(reject))
+    assert expected in str(exc.value)
+    assert sentinel not in str(exc.value)
+    assert "fake-unit-test-key" not in str(exc.value)
+
+
+def test_live_network_error_does_not_print_host_or_credentials(monkeypatch):
+    configure(monkeypatch)
+    def offline(req):
+        raise httpx.ConnectError("TOP_SECRET_VALUE_SHOULD_NOT_BE_LOGGED")
+    with pytest.raises(ModelError, match="网络连接失败") as exc:
+        run_model_tools(synthetic_run(), {"inspect_inventory"},
+                        transport=httpx.MockTransport(offline))
+    assert "TOP_SECRET" not in str(exc.value)

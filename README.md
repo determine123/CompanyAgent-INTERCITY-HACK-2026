@@ -9,13 +9,13 @@
 
 ## GitHub Actions 云端 TokenDance 实网验收
 
-新增独立 **TokenDance LIVE Tool Calling (synthetic only)** 工作流，使用 GitHub **Repository Secret `TOKENDANCE_API_KEY`** 安全注入密钥（`workflow_dispatch` 手动选择支持 Tool Calling 的模型）。脚本只使用合成聚合数据，成功时生成 7 天有效的脱敏证据附件。**首次云端执行被缺少 Secret 的预检阻塞，没有完成真实请求**；完整说明与首次运行记录见 [GitHub Actions 联调手册](docs/TOKENDANCE_GITHUB_CLOUD_RUN.md)。
+新增独立 **TokenDance LIVE Tool Calling (synthetic only)** 工作流，使用 GitHub **Repository Secret `TOKENDANCE_API_KEY`** 安全注入密钥（`workflow_dispatch` 手动选择支持 Tool Calling 的模型）。脚本只使用合成聚合数据，成功时生成 7 天有效的脱敏证据附件。**已在 GitHub 云端使用 TokenDance `glm-5.2` 通过真实 Tool Calling：3 个白名单只读工具调用，脱敏证据已上传**。见 [2026-11-21 实测验收记录](docs/TOKENDANCE_LIVE_VERIFIED_2026-11-21.md)；生产系统和真实企业数据仍未验收。
 
 ## v1.4 · TokenDance 受限 Tool Calling（可选，需本人兑换与配置）
 
 - 新增固定地址 `https://tokendance.space/gateway/v1/chat/completions`，只能通过服务端 `COMPANYAGENT_MODEL_PROVIDER=tokendance` 启用；密钥与模型 ID 分别来自 `TOKENDANCE_API_KEY`、`TOKENDANCE_MODEL`，不提供任意自定义 URL。
 - 沿用冻结 Skill 权限、三个只读聚合工具、每次外发确认、最多四轮、拒绝越权和零业务写入；模型只返回文字时不当作 Tool Calling 验收成功。
-- **离线协议与安全测试不等于真实联调。** 兑换券须本人在 TokenDance 账户兑换并生成单独 API Key；目前未证实额度入账，也未完成实际公网模型调用。
+- **实网与离线测试已区分。** `glm-5.2` 在 GitHub Actions 完成 3 次只读 Tool Calling；`deepseek-v3.2` 实网返回 HTTP 403，原因未确认；兑换券是否入账未核实。已暴露的旧 API Key 应轮换。
 - 纯合成数据一键验收：`python scripts/verify_tokendance_tool_calling.py --i-authorize-external-call`，须先在本机配置密钥和支持 Tool Calling 的模型 ID。
 - 完整步骤与限制见 [TokenDance 联调手册](docs/TOKENDANCE_LIVE_VALIDATION.md)。旧的 B1X 文本解读接口仍独立保留。
 

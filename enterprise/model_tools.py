@@ -104,8 +104,26 @@ def run_model_tools(result, allowed, *, api_key=None, transport=None, max_steps=
                 response.raise_for_status()
                 data=response.json()
                 answer=data['choices'][0]['message']
-            except (httpx.HTTPError,KeyError,IndexError,ValueError,TypeError) as exc:
-                raise ModelError('模型网关请求失败或返回格式不符合 Chat Completions 协议') from exc
+            except httpx.HTTPStatusError as exc:
+                code = exc.response.status_code
+                categories = {
+                    400: '参数无效、工具协议不兼容或模型暂不可用',
+                    401: 'API Key 无效或未被服务商接受',
+                    402: '额度不足或计费状态限制',
+                    403: '网关拒绝访问（可能涉及模型权限、账户或访问策略）',
+                    404: '模型或网关路径不存在',
+                    408: '网关请求超时',
+                    422: '服务商拒绝当前工具请求结构',
+                    429: '触发服务商速率或额度限制',
+                }
+                category = categories.get(code, '服务商网关返回错误')
+                raise ModelError(f'模型网关 HTTP {code}：{category}；请核对 TokenDance 控制台调用日志') from None
+            except httpx.TimeoutException:
+                raise ModelError('模型网关请求超时（不等于密钥无效）') from None
+            except httpx.RequestError:
+                raise ModelError('模型网关网络连接失败（DNS/TLS/出站网络）') from None
+            except (KeyError,IndexError,ValueError,TypeError):
+                raise ModelError('模型网关返回格式不符合 Chat Completions 协议') from None
             calls=answer.get('tool_calls') or []
             if not isinstance(calls,list) or len(calls)>1:
                 raise ModelError('仅允许每轮最多一次工具调用')
