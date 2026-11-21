@@ -7,6 +7,7 @@ from src.coverage import join_coverage
 from src.brief import analyze_brief
 from src.operations import execution_review
 from .store import TOOLS, now
+from .campaign import build_hypothesis, scenario_changes
 
 LANDMARKS=('正大广场','上海南站','新天地','陆家嘴','徐家汇','人民广场','南京西路')
 
