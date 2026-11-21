@@ -48,6 +48,8 @@ def test_cloud_synthetic_starts_without_secrets_and_real_data():
     {"COMPANYAGENT_SOURCE_A_TOKEN":"test"},
     {"COMPANYAGENT_AUTO_SYNC":"true"},
     {"COMPANYAGENT_REAL_DATA_ENABLED":"true"},
+    {"HONGDOU_PILOT_ACCESS_TOKEN":"synthetic-only-key"},
+    {"HONGDOU_PILOT_HOST":"inventory.example.org"},
 ])
 def test_cloud_synthetic_rejects_secrets_sync_or_real_data(unsafe):
     with pytest.raises(RuntimeError,match="CLOUD_SYNTHETIC_BLOCKED"):
