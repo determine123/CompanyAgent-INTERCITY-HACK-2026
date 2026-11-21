@@ -19,6 +19,7 @@ from .provider_config import provider_name, provider_configured
 from .deployment_policy import deployment_mode
 from .failure_learning import record_failure
 from .change_workflow import analyze_change, CHANGE_TYPES
+from .impact_metrics import evaluate_pair
 
 router=APIRouter(prefix='/enterprise/api',tags=['Enterprise Agent Hub'])
 
@@ -81,6 +82,16 @@ class ChangeRequest(BaseModel):
     change_type:str
     effective_date:str
     note:str=Field(min_length=4,max_length=1000)
+
+class ImpactMeasurement(BaseModel):
+    manual_minutes:float=Field(gt=0,le=1440)
+    generation_minutes:float=Field(ge=0,le=1440)
+    review_minutes:float=Field(ge=0,le=1440)
+    rework_minutes:float=Field(ge=0,le=1440)
+    manual_errors:int|None=Field(default=None,ge=0,le=100)
+    assistant_errors:int|None=Field(default=None,ge=0,le=100)
+    comparable_scope:bool=False
+    evidence_attested:bool=False
 
 class BridgeRequest(BaseModel):
     inventory_dataset_id:int
@@ -380,6 +391,48 @@ def bounded_tool_calling(request:Request,run_id:int,data:ToolCallingRequest):
                       (who['id'],run_id,safe_json(answer),now())).lastrowid
     audit(who['id'],'model_tool_success',f'run={run_id};call={cid};tools={len(answer["executed_tools"])}')
     return {'model_call_id':cid,'run_id':run_id,**answer}
+
+@router.post('/runs/{run_id}/impact-measurement')
+def save_impact_measurement(run_id:int,request:Request,data:ImpactMeasurement):
+    """Save numeric paired-effort evidence. Not business-verified ROI."""
+    who=req_actor(request)
+    row=_run_for_view(run_id,who)
+    inputs=data.model_dump()
+    try:
+        report=evaluate_pair(inputs,synthetic_mode=deployment_mode()=='cloud_synthetic')
+    except ValueError as exc:
+        raise HTTPException(400,str(exc)) from exc
+    frozen=hashlib.sha256((row['request_json']+'\n'+row['result_json']).encode('utf-8')).hexdigest()
+    recorded=now()
+    with db() as c:
+        c.execute("""INSERT INTO productivity_measurements
+                     (run_id,owner_id,run_sha256,inputs_json,report_json,recorded_at)
+                     VALUES(?,?,?,?,?,?)
+                     ON CONFLICT(run_id) DO UPDATE SET
+                     owner_id=excluded.owner_id,run_sha256=excluded.run_sha256,
+                     inputs_json=excluded.inputs_json,report_json=excluded.report_json,
+                     recorded_at=excluded.recorded_at""",
+                  (run_id,row['owner_id'],frozen,safe_json(inputs),safe_json(report),recorded))
+    audit(who['id'],'impact_self_report_saved',f'run={run_id};status={report["status"]}')
+    return {'run_id':run_id,'recorded_at':recorded,'report':report,
+            'attestation':'Recorded by a user; no independent verification or enterprise ROI claim'}
+
+
+@router.get('/runs/{run_id}/impact-measurement')
+def get_impact_measurement(run_id:int,request:Request):
+    who=req_actor(request)
+    row=_run_for_view(run_id,who)
+    with db() as c:
+        measurement=c.execute('SELECT * FROM productivity_measurements WHERE run_id=?',(run_id,)).fetchone()
+    if not measurement:
+        return {'run_id':run_id,'status':'not_measured'}
+    frozen=hashlib.sha256((row['request_json']+'\n'+row['result_json']).encode('utf-8')).hexdigest()
+    if frozen!=measurement['run_sha256']:
+        return {'run_id':run_id,'status':'source_changed','usable':False}
+    return {'run_id':run_id,'status':'self_reported','recorded_at':measurement['recorded_at'],
+            'inputs':json.loads(measurement['inputs_json']),
+            'report':json.loads(measurement['report_json'])}
+
 
 @router.post('/runs/{run_id}/change-impact')
 def impact_of_change(run_id:int, request:Request, data:ChangeRequest):

@@ -77,6 +77,10 @@ def init():
                  created_at TEXT NOT NULL);
               CREATE TABLE IF NOT EXISTS model_tool_runs(id INTEGER PRIMARY KEY,owner_id INTEGER NOT NULL,
                  run_id INTEGER NOT NULL,trace_json TEXT NOT NULL,created_at TEXT NOT NULL);
+              CREATE TABLE IF NOT EXISTS productivity_measurements(
+                 run_id INTEGER PRIMARY KEY,owner_id INTEGER NOT NULL,run_sha256 TEXT NOT NULL,
+                 inputs_json TEXT NOT NULL,report_json TEXT NOT NULL,recorded_at TEXT NOT NULL,
+                 FOREIGN KEY(run_id) REFERENCES runs(id));
               CREATE INDEX IF NOT EXISTS idx_failure_owner ON failure_cases(owner_id,id DESC);
               CREATE INDEX IF NOT EXISTS idx_model_runs_owner ON model_tool_runs(owner_id,id DESC);
               CREATE INDEX IF NOT EXISTS idx_imp_creator ON improvements(creator_id,id DESC);
