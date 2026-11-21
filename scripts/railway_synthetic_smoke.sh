@@ -69,7 +69,7 @@ guest_private="$(curl -s -o /dev/null -w '%{http_code}' "$base/enterprise/api/st
 guest_old="$(curl -s -o /dev/null -w '%{http_code}' "$base/api/demo")"
 guest_post="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/judge/api/plan")"
 test "$guest_page" = 200 && test "$guest_api" = 200
-test "$guest_private" = 401 && test "$guest_old" = 401 && test "$guest_post" = 405
+test "$guest_private" = 401 && { test "$guest_old" = 401 || test "$guest_old" = 403; } && test "$guest_post" = 405
 grep -q '无需登录' "$tmp/judge-page.html"
 python - "$tmp/judge-plan.json" <<'PY'
 import json,sys

@@ -17,12 +17,17 @@ _BUDGETS=(100,200,500)
 _MEDIA=('both','bus','metro')
 
 
-@lru_cache(maxsize=9)
 def preview(budget_wan:int,medium:str)->dict:
+    # Keep strict type validation *before* cache lookup: 200 == 200.0 in Python.
     if type(budget_wan) is not int or budget_wan not in _BUDGETS:
         raise ValueError('演示预算只能为100、200或500万元')
     if medium not in _MEDIA:
         raise ValueError('演示媒体只能为公交、地铁或组合')
+    return _render_preview(budget_wan,medium)
+
+
+@lru_cache(maxsize=9)
+def _render_preview(budget_wan:int,medium:str)->dict:
     with _DEMO.open(encoding='utf-8-sig',newline='') as stream:
         parsed=parse_inventory(list(csv.DictReader(stream)),'DEMO-SYNTHETIC')
     records=parsed['records']

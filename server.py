@@ -1,6 +1,5 @@
 """CompanyAgent hackathon local server. Default bind: 127.0.0.1, not public internet."""
 import csv, io, json, os
-from typing import Literal
 from pathlib import Path
 from typing import Any
 import httpx
@@ -274,7 +273,9 @@ app.include_router(failure_router)
 # Stateless public judge API: explicit 9-input allowlist, no cookies/DB/enterprise auth.
 # Only the cloud_synthetic deployment exposes this read-only fictional preview.
 @app.get("/judge/api/plan")
-def judge_plan(budget_wan:Literal[100,200,500]=200,medium:Literal['both','bus','metro']='both'):
+def judge_plan(budget_wan:int=200,medium:str='both'):
+    if budget_wan not in (100,200,500) or medium not in ('both','bus','metro'):
+        raise HTTPException(422,'仅允许100/200/500万及公交/地铁/组合模式')
     if deployment_mode()!='cloud_synthetic':
         raise HTTPException(404,'公开评委预览仅限合成演示部署')
     from enterprise.judge_preview import preview
