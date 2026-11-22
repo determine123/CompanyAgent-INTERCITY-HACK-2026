@@ -12,3 +12,11 @@
 - 生产门禁材料检查：`python scripts/review_migration_gates.py /private/manifest.json`，模板见 deploy/approval-manifest.example.json。生产仍需完成上表所列系统接入和实地演练。
 - 工时与成本：`python -m scripts.evaluate_enterprise_pilot /private/trials.json`。沿用原 trials 格式，可在同级添加 costs_cny_fen 对象，以每个 case_id 为键。每案填写 manual_labor、manual_other、assisted_labor、model、infrastructure、rollout_allocation、assisted_other 七项非负人民币分整数。人工包含审核、交接和返工。财务按同一期间分摊固定成本，每项只归集一次。零费用须有依据。
 - 样本成本变化率按（人工流程总成本 − 辅助流程总成本）/ 人工流程总成本计算。负值代表成本增加。工时的 bootstrap 区间仅适用于工时。成本汇总和审核签字分别留档。
+
+## 单案例模拟回放
+
+运行 `python -m scripts.simulate_media_pilot` 可取得各方案媒体明细、库存冲突、成本假设及差额。案例使用模拟饮料品牌、2027 年 5 月 1 日起四周和 100 万元预算。为对照工作量，本次设定公交 15 个、地铁 7 个。该数量是模拟验收条件。
+
+- 模拟负责人对整份合成快照确认数量。公交 003 从 4 个降到 2 个，地铁 027 从 4 个降到 0 个。缺项和非法数量阻断回放。
+- 旧快照的两份初稿均有两项冲突。修订后人工脚本方案 98.30 万元，优化器方案 97.95 万元，两案均交付指定数量并满足档期。尚无覆盖、人群触达或 KPI 实测。
+- 人工流程假设 125 分钟、282 元，辅助流程假设 74 分钟、198 元。每阶段分钟数、岗位费率和非人工费用随回放输出。模型费用为零，本演练使用确定性优化器。如有模型账单、实际实施分摊或返工工时，应替换假设后重算。84 元差额仅用于验证核算流程。
