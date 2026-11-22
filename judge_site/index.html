@@ -10,7 +10,7 @@
 <body>
 <header class="site-head">
   <a class="brand" href="/judge/"><span class="star">✦</span> Company<span>Agent</span></a>
-  <nav><a href="#experience">交互体验</a><a href="#pilot">企业复核</a><a href="#architecture">产品架构</a><a href="https://github.com/determine123/CompanyAgent-INTERCITY-HACK-2026" target="_blank" rel="noopener noreferrer">GitHub 源码 ↗</a></nav>
+  <nav><a href="#experience">交互体验</a><a href="#metro">公告核查</a><a href="#pilot">企业复核</a><a href="#architecture">产品架构</a><a href="https://github.com/determine123/CompanyAgent-INTERCITY-HACK-2026" target="_blank" rel="noopener noreferrer">GitHub 源码 ↗</a></nav>
 </header>
 <main>
   <section class="hero">
@@ -114,6 +114,18 @@
       </article>
     </div>
   </section>
+  <section class="content" id="metro">
+    <div class="section-heading"><h2>投放前核查地铁出入口</h2><p>核对候选点位与施工公告是否冲突。数据来自上海市政府网站 2026 年 10 月 12 日公告，覆盖金海路、上海火车站两站的四个出入口。历史回放截至 10 月 13 日，后续档期需重新核实。</p>
+    <a href="https://www.shanghai.gov.cn/nw17239/20261012/52ce31594c754d87ba225bb994efec09.html" target="_blank" rel="noopener noreferrer">查看公告原文 ↗</a></div>
+    <article class="panel"><form id="metroReview">
+    <label>候选点位（每行一个，站名和口号用逗号分隔）<textarea name="points" rows="4" maxlength="6000" required>金海路站，1
+金海路站，3
+上海火车站，2</textarea></label>
+    <label>投放开始<input type="date" name="start" value="2026-10-13" required></label>
+    <label>投放结束<input type="date" name="end" value="2026-10-13" required></label>
+    <button class="submit" type="submit">核查候选点位</button></form>
+    <ul id="metroResult" aria-live="polite"></ul><p>通行公告用于发现选址风险。广告库存、报价和实际触达须分别核验。</p></article>
+  </section>
   <section class="content" id="field-review">
     <div class="section-heading"><h2>按新云传媒披露的流程核对一单业务</h2>
     <p>公司公开转让说明书第 29–30 页载有选媒、客户定稿、上画确认与后续维护流程。第 30 页起披露的历史资源包括约 324 条公交线路、3000 余辆公交车（截至 2015 年末）。当前档期和可售数量须向红豆另行核验。</p>
@@ -200,5 +212,6 @@
   </section>
 </main>
 <footer><span>CompanyAgent · INTERCITY HACK 湖州场 · 公开合成数据体验</span><span>算法演示 ≠ 商务承诺 / 已锁位 / 已验证 ROI</span></footer>
+<script type="module" src="/judge/metro-review.mjs"></script>
 <script src="/judge/app.js"></script>
 </body></html>
