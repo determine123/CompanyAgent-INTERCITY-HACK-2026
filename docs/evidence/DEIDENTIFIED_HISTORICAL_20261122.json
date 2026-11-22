@@ -1,0 +1,101 @@
+{
+  "status": "offline_validated_real_enterprise_provided_deidentified_historical_data",
+  "provenance_statement": "Based on prior user-provided, de-identified real-business contest exports; corporate source authorization not independently verified",
+  "validation_date": "2026-11-22",
+  "stock_snapshot_date": "2026-11-13",
+  "target_campaign_period": [
+    "2027-05-01",
+    "2027-05-28"
+  ],
+  "source_original_sha256": {
+    "01-公交媒体台账.xlsx": "e1fe65b1fad81c015422cb196b616be8643f588a2539ce1329839e73fc9cb825",
+    "07-媒体刊例价.xlsx": "7670d44b1b665ddb61a5a4dfc12ba69a53c02c2bbb283f1a81cbbf8f4c5ca124"
+  },
+  "inventory": {
+    "rows": 431,
+    "capacity_total": 2525,
+    "contract_occupied": 7,
+    "reserved_occupied": 1,
+    "maintenance": 0,
+    "renewal_protection": 0,
+    "empty_on_2026_11_13": 2517,
+    "row_arithmetic_failures": 0,
+    "negative_rows": 0,
+    "empty_exceeds_capacity_rows": 0,
+    "grade_counts": {
+      "A++": 200,
+      "A+": 181,
+      "S": 48,
+      "AA": 2
+    },
+    "format_counts": {
+      "车身三侧": 334,
+      "大三侧": 95,
+      "全色车": 2
+    },
+    "unpriced_AA_rows": 2
+  },
+  "pricing": {
+    "source": "deidentified_interval_reference",
+    "bus_upper_wan_per_month": {
+      "S": 7,
+      "A++": 6,
+      "A+": 5
+    },
+    "metro_upper_wan_per_month": {
+      "A++": 35,
+      "A+": 25
+    },
+    "production_upper_wan_per_bus": 1,
+    "formal_contract_price": false
+  },
+  "coverage": {
+    "summary_rows": 44,
+    "bus_coverage_rows": 37,
+    "metro_coverage_rows": 7,
+    "strict_historical_bus_matches": 28,
+    "matching_method": "Previously converted archive bus media name vs original coverage media name, Unicode NFKC + whitespace/case normalization, no fuzzy matching",
+    "site_counts": [
+      {
+        "site": "上海「正大广场」",
+        "summary": 19,
+        "bus": 17,
+        "metro": 2,
+        "strict_historical_matches": 12,
+        "sha256": "550d2c7116d4394cc8263f1debb2e391902349c5c4dc646051dc7d829fa1d9e0"
+      },
+      {
+        "site": "上海南站",
+        "summary": 10,
+        "bus": 7,
+        "metro": 3,
+        "strict_historical_matches": 5,
+        "sha256": "6d1e67210eb1a9f3513bfeb820d416a1f3609a18802d43658312a9553e1be2eb"
+      },
+      {
+        "site": "新天地",
+        "summary": 15,
+        "bus": 13,
+        "metro": 2,
+        "strict_historical_matches": 11,
+        "sha256": "06274a29a3c2c5706c541149f5a81d79b701f3e09ae1b312812fdb43e2334c10"
+      }
+    ]
+  },
+  "scope": {
+    "original_rows_published": false,
+    "live_hongdou_called": false,
+    "verified_2027_inventory": false,
+    "verified_2027_metro_stock": false,
+    "stock_booked": false,
+    "production_approved": false,
+    "ROI_verified": false
+  },
+  "notes": [
+    "Historical 2026-11-13 bus stock is a SINGLE DAY snapshot and cannot prove 2027-05-01..05-28 availability.",
+    "44 spatial coverage entries are NOT 44 saleable media units.",
+    "7 metro coverage entries are NOT metro inventory; metro priced units cannot be inferred.",
+    "Loose removal of route suffix can produce 33 candidate matches against original raw sheet, but only 28 strict normalized archive matches were reported as evidence.",
+    "Raw company XLSX/CSV, internal converted private data and tokens are excluded from public GitHub. README differentiates offline evidence from synthetic live demo."
+  ]
+}
