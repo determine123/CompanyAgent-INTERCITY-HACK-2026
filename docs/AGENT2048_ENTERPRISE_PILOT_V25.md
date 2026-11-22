@@ -37,7 +37,8 @@
 **管理员受控入口**：
 - \`GET /enterprise/api/pilot/readiness\`：九项硬阻断，不接受自称 ready；
 - \`POST /enterprise/api/pilot/paired-evaluation\`：仅 \`COMPANYAGENT_DEPLOYMENT_MODE=local\` + 管理员会话 + CSRF 使用，公开 Railway 403；不会写入真实案例数据到 DB（仅记录无敏感数量级审计）。
-- CLI 脚本 \`python scripts/evaluate_enterprise_pilot.py sample-trials.json\` 在企业内网解析匿名化 JSON，再输出汇总。不要把真实案例发往公开云端。
+- CLI 脚本 \`python -m scripts.evaluate_enterprise_pilot /path/to/private/pseudonymous-trials.json
+# Or: python scripts/evaluate_enterprise_pilot.py /path/to/private/pseudonymous-trials.json\` 在企业内网解析匿名化 JSON，再输出汇总。不要把真实案例发往公开云端。
 
 ## 3. 生产化门禁
 

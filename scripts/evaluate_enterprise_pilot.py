@@ -4,6 +4,10 @@ import json
 import os
 import sys
 from pathlib import Path
+# Direct execution with "python scripts/..." excludes the repository root by default.
+# Add only the known, trusted current project root; never load outside content.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from enterprise.deployment_policy import deployment_mode
 from enterprise.evidence_benchmark import evaluate_cohort, CohortInvalid
 
