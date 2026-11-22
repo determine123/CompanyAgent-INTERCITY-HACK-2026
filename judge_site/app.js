@@ -143,3 +143,12 @@ $('pilotReview').addEventListener('input', event => {
     `比人工${difference > 0 ? '少' : '多'} ${Math.abs(difference)} 元`;
   $('pilotCost').textContent = `额外 ${minutes} 分钟 · 辅助流程 ${assisted} 元 · ${comparison}`;
 });
+
+$('fieldChecklist').addEventListener('change', () => {
+  const items = Array.from($('fieldChecklist').querySelectorAll('input'));
+  const pending = items.find(item => !item.checked);
+  const count = items.filter(item => item.checked).length;
+  $('fieldNext').textContent = pending
+    ? `下一步：${pending.dataset.task}（${count}/${items.length}）`
+    : '六项均已自查，请由业务负责人复核原始材料。';
+});
