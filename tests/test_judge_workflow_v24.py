@@ -110,3 +110,16 @@ def test_workflow_is_only_available_in_synthetic_mode(monkeypatch):
     monkeypatch.setenv("COMPANYAGENT_DEPLOYMENT_MODE", "local")
     with TestClient(app) as c:
         assert c.get("/judge/api/workflow").status_code == 404
+
+
+def test_public_page_has_real_change_flow_and_local_brief_fields(monkeypatch):
+    monkeypatch.setenv("COMPANYAGENT_DEPLOYMENT_MODE","cloud_synthetic")
+    with TestClient(app) as c:
+        page=c.get("/judge/").text
+        script=c.get("/judge/app.js").text
+        for key in ("businessGoal","audience","kpi","measurement","priorBudget","priorMedium",
+                    "changeType","impactSpend","handoffSteps","qualityChecks","skillPreview"):
+            assert 'id="'+key+'"' in page
+        assert "/judge/api/workflow" in script
+        assert "navigator.clipboard.writeText" in script
+        assert "credentials:'omit'" in script
