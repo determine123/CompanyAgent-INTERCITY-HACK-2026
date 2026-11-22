@@ -218,3 +218,5 @@ python tests/browser_iteration_v09.py
 - **执行失败驱动 Skill 迭代**：缺工具/数据/模型时登记诊断；可修复的缺失覆盖工具在同一冻结输入上先做 before/after 测试，人工审批后才会变更 Skill，随时可回滚。不可通过模型擅自扩权或执行代码。
 
 详细接口、权限边界、实际数据验证与已知限制参见 [v1.2 交付文档](docs/V12_MODEL_DATA_ITERATION.md)。
+
+企业试点操作与证据要求见 [企业验收说明](docs/ENTERPRISE_ACCEPTANCE_CN.md)。
