@@ -22,6 +22,8 @@ from .change_workflow import analyze_change, CHANGE_TYPES
 from .impact_metrics import evaluate_pair
 from .demand_memory import summarize_runs, decision_brief, TEMPLATES, MAX_RUNS
 from .workshop_contract import source_snapshot, workshop_readiness
+from .evidence_benchmark import evaluate_cohort, CohortInvalid
+from .production_readiness import production_readiness
 
 router=APIRouter(prefix='/enterprise/api',tags=['Enterprise Agent Hub'])
 
@@ -95,6 +97,11 @@ class ImpactMeasurement(BaseModel):
     assistant_errors:int|None=Field(default=None,ge=0,le=100)
     comparable_scope:bool=False
     evidence_attested:bool=False
+
+class PairedEvaluationBatch(BaseModel):
+    # Pseudonymous measurement cases only. No real customer names or raw evidence.
+    trials:list[dict]=Field(min_length=1,max_length=100)
+
 
 class BridgeRequest(BaseModel):
     inventory_dataset_id:int
@@ -402,6 +409,28 @@ def get_workshop_readiness(run_id:int,request:Request):
     row=_run_for_view(run_id,who)
     saved=json.loads(row['result_json'])
     return {'run_id':run_id,**workshop_readiness(json.loads(row['request_json']),saved)}
+
+
+@router.get('/pilot/readiness')
+def get_enterprise_pilot_readiness(request:Request):
+    who=req_actor(request)
+    require_admin(who)
+    return production_readiness(deployment_mode=deployment_mode())
+
+
+@router.post('/pilot/paired-evaluation')
+def evaluate_enterprise_pilot_batch(request:Request,data:PairedEvaluationBatch):
+    who=req_actor(request)
+    require_admin(who)
+    # Never accept real case observations through an ephemeral public Railway demo.
+    if deployment_mode()!='local':
+        raise HTTPException(403,'只允许在企业受控本机/私有环境评估匿名化样本')
+    try:
+        result=evaluate_cohort(data.trials)
+    except CohortInvalid as exc:
+        raise HTTPException(422,str(exc)) from None
+    audit(who['id'],'pilot_paired_evaluation',f"cases={result['case_count']}; no raw data stored")
+    return result
 
 
 @router.get('/workshop/data-readiness')
