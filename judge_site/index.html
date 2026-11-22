@@ -10,7 +10,7 @@
 <body>
 <header class="site-head">
   <a class="brand" href="/judge/"><span class="star">✦</span> Company<span>Agent</span></a>
-  <nav><a href="#experience">交互体验</a><a href="#architecture">产品架构</a><a href="https://github.com/determine123/CompanyAgent-INTERCITY-HACK-2026" target="_blank" rel="noopener noreferrer">GitHub 源码 ↗</a></nav>
+  <nav><a href="#experience">交互体验</a><a href="#pilot">企业复核</a><a href="#architecture">产品架构</a><a href="https://github.com/determine123/CompanyAgent-INTERCITY-HACK-2026" target="_blank" rel="noopener noreferrer">GitHub 源码 ↗</a></nav>
 </header>
 <main>
   <section class="hero">
@@ -114,6 +114,68 @@
       </article>
     </div>
   </section>
+  <section class="content" id="pilot">
+    <div class="section-heading"><h2>同一份提案，三个岗位怎么验收？</h2><p>固定合成案例 · 饮料品牌 · 2027 年 5 月 1 日起四周 · 预算 100 万元 · 交付公交 15 个、地铁 7 个。此案例独立于上方预算选择。</p></div>
+    <article class="panel"><h3>媒介核库存，业务重做方案</h3>
+    <p>模拟负责人确认公交 003 有 2 个锁位，可用量从 4 降至 2；地铁 027 全部占用，可用量从 4 降至 0。展开可逐项核对配置与金额。</p>
+<details><summary>人工初稿 · 公交 10 / 地铁 6 · 62.60 万元 · 退回，2 项库存冲突</summary><div class="table-wrap"><table><thead><tr><th>合成资源 ID</th><th>单元数</th><th>参考金额（万元）</th><th>库存核对</th></tr></thead><tbody>
+<tr><td>DEMO-BUS-003</td><td>4</td><td>13.40</td><td>超出可用量</td></tr>
+<tr><td>DEMO-METRO-027</td><td>4</td><td>16.00</td><td>超出可用量</td></tr>
+<tr><td>DEMO-BUS-027</td><td>4</td><td>10.00</td><td>数量符合</td></tr>
+<tr><td>DEMO-METRO-014</td><td>2</td><td>8.00</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-013</td><td>1</td><td>7.60</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-026</td><td>1</td><td>7.60</td><td>数量符合</td></tr>
+</tbody></table></div></details>
+<details><summary>Agent 初稿 · 公交 16 / 地铁 8 · 97.65 万元 · 退回，2 项库存冲突</summary><div class="table-wrap"><table><thead><tr><th>合成资源 ID</th><th>单元数</th><th>参考金额（万元）</th><th>库存核对</th></tr></thead><tbody>
+<tr><td>DEMO-METRO-027</td><td>4</td><td>16.00</td><td>超出可用量</td></tr>
+<tr><td>DEMO-BUS-003</td><td>4</td><td>13.40</td><td>超出可用量</td></tr>
+<tr><td>DEMO-BUS-027</td><td>4</td><td>10.00</td><td>数量符合</td></tr>
+<tr><td>DEMO-METRO-014</td><td>2</td><td>8.00</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-013</td><td>1</td><td>7.60</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-026</td><td>1</td><td>7.60</td><td>数量符合</td></tr>
+<tr><td>DEMO-METRO-001</td><td>1</td><td>6.20</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-007</td><td>1</td><td>5.05</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-033</td><td>1</td><td>5.05</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-014</td><td>2</td><td>5.00</td><td>数量符合</td></tr>
+<tr><td>DEMO-METRO-003</td><td>1</td><td>4.85</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-001</td><td>1</td><td>4.70</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-031</td><td>1</td><td>4.20</td><td>数量符合</td></tr>
+</tbody></table></div></details>
+<details><summary>人工修订 · 公交 15 / 地铁 7 · 98.30 万元 · 通过模拟验收</summary><div class="table-wrap"><table><thead><tr><th>合成资源 ID</th><th>单元数</th><th>参考金额（万元）</th><th>库存核对</th></tr></thead><tbody>
+<tr><td>DEMO-BUS-003</td><td>2</td><td>6.70</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-027</td><td>4</td><td>10.00</td><td>数量符合</td></tr>
+<tr><td>DEMO-METRO-014</td><td>2</td><td>8.00</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-013</td><td>1</td><td>7.60</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-026</td><td>1</td><td>7.60</td><td>数量符合</td></tr>
+<tr><td>DEMO-METRO-001</td><td>1</td><td>6.20</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-007</td><td>1</td><td>5.05</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-014</td><td>2</td><td>5.00</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-031</td><td>1</td><td>4.20</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-009</td><td>3</td><td>17.70</td><td>数量符合</td></tr>
+<tr><td>DEMO-METRO-003</td><td>3</td><td>14.55</td><td>数量符合</td></tr>
+<tr><td>DEMO-METRO-031</td><td>1</td><td>5.70</td><td>数量符合</td></tr>
+</tbody></table></div></details>
+<details><summary>Agent 修订 · 公交 15 / 地铁 7 · 97.95 万元 · 通过模拟验收</summary><div class="table-wrap"><table><thead><tr><th>合成资源 ID</th><th>单元数</th><th>参考金额（万元）</th><th>库存核对</th></tr></thead><tbody>
+<tr><td>DEMO-BUS-026</td><td>2</td><td>15.20</td><td>数量符合</td></tr>
+<tr><td>DEMO-METRO-003</td><td>3</td><td>14.55</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-027</td><td>4</td><td>10.00</td><td>数量符合</td></tr>
+<tr><td>DEMO-METRO-014</td><td>2</td><td>8.00</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-013</td><td>1</td><td>7.60</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-003</td><td>2</td><td>6.70</td><td>数量符合</td></tr>
+<tr><td>DEMO-METRO-001</td><td>1</td><td>6.20</td><td>数量符合</td></tr>
+<tr><td>DEMO-METRO-031</td><td>1</td><td>5.70</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-007</td><td>1</td><td>5.05</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-033</td><td>1</td><td>5.05</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-014</td><td>2</td><td>5.00</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-001</td><td>1</td><td>4.70</td><td>数量符合</td></tr>
+<tr><td>DEMO-BUS-031</td><td>1</td><td>4.20</td><td>数量符合</td></tr>
+</tbody></table></div></details>
+</article><article class="panel"><h3>财务核算：复核多花多久，成本优势会消失？</h3>
+<p>编制一份方案的假设成本：人工 282 元（人工费 280 元、其他 2 元）；Agent 辅助 198 元（人工费 178 元、基础设施 3 元、实施分摊 15 元、其他 2 元）。本例使用确定性优化器，模型费为零。</p>
+<label for="pilotReview">额外媒介复核时间（0–60 分钟，按 180 元/小时）</label>
+<input type="range" id="pilotReview" min="0" max="60" value="0" step="1">
+<output id="pilotCost" for="pilotReview" aria-live="polite">额外 0 分钟 · 辅助流程 198 元 · 比人工少 84 元</output>
+<p>成本持平点为额外复核 28 分钟。工时和费率均为演练假设，触达效果及实际降本仍待企业验证。</p></article></section>
   <section class="content" id="architecture">
     <div class="section-heading"><div class="eyebrow">STEP 03 · WHAT MAKES IT AN ENTERPRISE AGENT</div><h2>不止生成一段 AI 文案</h2><p>真实产品在授权企业环境工作，这个游客入口只暴露虚构示例和确定性计算。</p></div>
     <div class="feature-grid">

@@ -134,3 +134,12 @@ $('copyHandoff').addEventListener('click',async()=>{
  }catch(e){$('copyHandoff').textContent='浏览器未授权复制，请改用现场展示';}
 });
 renderBrief();
+
+$('pilotReview').addEventListener('input', event => {
+  const minutes = Number(event.target.value);
+  const assisted = 198 + minutes * 3;
+  const difference = 282 - assisted;
+  const comparison = difference === 0 ? '与人工持平' :
+    `比人工${difference > 0 ? '少' : '多'} ${Math.abs(difference)} 元`;
+  $('pilotCost').textContent = `额外 ${minutes} 分钟 · 辅助流程 ${assisted} 元 · ${comparison}`;
+});
