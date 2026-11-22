@@ -281,6 +281,19 @@ def judge_plan(budget_wan:int=200,medium:str='both'):
     from enterprise.judge_preview import preview
     return preview(budget_wan,medium)
 
+@app.get("/judge/api/workflow")
+def judge_workflow(budget_wan:int=200,medium:str='both',
+                   prior_budget_wan:int=100,prior_medium:str='both',
+                   change_type:str='creative_revision'):
+    # Same anonymous fixed fictional CSV only; no customer payload or database access.
+    if deployment_mode()!='cloud_synthetic':
+        raise HTTPException(404,'公开演示仅限合成数据')
+    from enterprise.judge_workflow import workflow_preview
+    try:
+        return workflow_preview(budget_wan,medium,prior_budget_wan,prior_medium,change_type)
+    except ValueError as exc:
+        raise HTTPException(422,str(exc)) from None
+
 app.mount("/judge", StaticFiles(directory=ROOT/"judge_site",html=True),name="judge")
 app.mount("/governance", StaticFiles(directory=ROOT/"governance_site", html=True), name="governance")
 app.mount("/enterprise", StaticFiles(directory=ROOT/"enterprise_web", html=True), name="enterprise")
