@@ -65,10 +65,11 @@ benchmark="$(curl -s -o /dev/null -w '%{http_code}' -X POST --user reviewer:"$fa
 # The anonymous judge surface must work, but never create a backend bypass.
 guest_page="$(curl -s -o "$tmp/judge-page.html" -w '%{http_code}' "$base/judge/")"
 guest_api="$(curl -s -o "$tmp/judge-plan.json" -w '%{http_code}' "$base/judge/api/plan?budget_wan=200&medium=both")"
+guest_workflow="$(curl -s -o "$tmp/judge-workflow.json" -w '%{http_code}' "$base/judge/api/workflow?budget_wan=200&medium=both&prior_budget_wan=100&prior_medium=both&change_type=creative_revision")"
 guest_private="$(curl -s -o /dev/null -w '%{http_code}' "$base/enterprise/api/status")"
 guest_old="$(curl -s -o /dev/null -w '%{http_code}' "$base/api/demo")"
 guest_post="$(curl -s -o /dev/null -w '%{http_code}' -X POST "$base/judge/api/plan")"
-test "$guest_page" = 200 && test "$guest_api" = 200
+test "$guest_page" = 200 && test "$guest_api" = 200 && test "$guest_workflow" = 200
 test "$guest_private" = 401 && { test "$guest_old" = 401 || test "$guest_old" = 403; } && test "$guest_post" = 405
 grep -q '无需登录' "$tmp/judge-page.html"
 python - "$tmp/judge-plan.json" <<'PY'
@@ -78,6 +79,14 @@ assert d["synthetic_only"] and not d["real_hongdou_connected"]
 assert d["budget_wan"]==200 and d["spent_wan"]<=200
 assert d["sample_size"]==80
 assert not d["evidence"]["future_inventory_available"] and not d["evidence"]["booked"]
+PY
+python - "$tmp/judge-workflow.json" <<'PY'
+import json,sys
+w=json.load(open(sys.argv[1],encoding='utf-8'))
+assert w["simulation_only"] and not w["changed_enterprise_records"]
+assert w["impact"]["net_units"]==w["current"]["unit_count"]-w["previous"]["unit_count"]
+assert len(w["checks"])==9
+assert not w["handoff"]["customer_notified"] and not w["handoff"]["inventory_reserved"]
 PY
 test "$anon" = 401 && test "$wrong" = 401
 test "$unsafe" = 403 && test "$ingest" = 403 && test "$users" = 403 && test "$benchmark" = 403

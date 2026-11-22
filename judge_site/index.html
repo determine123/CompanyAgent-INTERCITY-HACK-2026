@@ -30,7 +30,16 @@
         <label for="goal">Campaign 主目标</label>
         <select id="goal"><option>到店</option><option>认知</option><option>促销</option><option>拉新</option></select>
         <p class="hint">目标属于待客户确认的 Brief 信息；当前选媒算法不会借此虚构人群触达或广告收益。</p>
-        <label for="budget">预算（实际重新调用同一套确定性优化器）</label>
+        <label for="businessGoal">客户生意目标（只在本机显示）</label>
+        <input id="businessGoal" maxlength="100" value="虚构饮料新品推广与到店了解">
+        <label for="audience">目标人群（只在本机显示）</label>
+        <input id="audience" maxlength="100" value="模拟：上海通勤人群">
+        <label for="kpi">成功 KPI（需客户确认）</label>
+        <input id="kpi" maxlength="100" value="示例：活动二维码有效扫码次数">
+        <label for="measurement">核验方式（需客户确认）</label>
+        <input id="measurement" maxlength="100" value="示例：客户自有活动后台复核">
+        <div class="brief-check" id="briefCheck">七要素完整度待核验</div>
+        <label>预算（实际重新调用同一套确定性优化器）</label>
         <div class="budget-row" id="budgetOptions"><button type="button" data-budget="100">100 万</button><button type="button" class="active" data-budget="200">200 万</button><button type="button" data-budget="500">500 万</button></div>
         <label for="medium">媒体偏好</label>
         <select id="medium"><option value="both">公交车身 + 地铁出入口</option><option value="bus">仅公交</option><option value="metro">仅地铁</option></select>
@@ -61,8 +70,52 @@
       </article>
     </div>
   </section>
+  <section class="content" id="change-flow">
+    <div class="section-heading"><div class="eyebrow">STEP 02 · CLIENT CHANGE TO HUMAN HANDOFF</div><h2>客户刚改了预算，接下来谁负责？</h2><p>同一版本的合成库存，前后两次由后端分别重新优化。自动生成差异核算、提案证据门禁和跨部门交接任务；全部是待人工确认的建议，不触发任何真实业务系统。</p></div>
+    <div class="two-column">
+      <article class="panel">
+        <div class="panel-head"><span class="serial">03</span><h3>变更前后对照</h3><span class="tag">真实后端重算</span></div>
+        <div class="flow-controls">
+          <div><label for="priorBudget">原预算</label><select id="priorBudget"><option value="100" selected>100 万</option><option value="200">200 万</option><option value="500">500 万</option></select></div>
+          <div><label for="priorMedium">原媒体范围</label><select id="priorMedium"><option value="both" selected>公交 + 地铁</option><option value="bus">仅公交</option><option value="metro">仅地铁</option></select></div>
+        </div>
+        <label for="changeType" class="flow-label">额外业务事件（触发岗位依赖）</label>
+        <select id="changeType"><option value="creative_revision">客户改稿</option><option value="vehicle_reassignment">车辆换线</option><option value="weather_monitoring">雨天影响监拍</option></select>
+        <button class="submit secondary" type="button" id="analyzeChange">重新计算差异与交接 →</button>
+        <div id="workflowLoading" class="flow-hint">请先在上方生成一份候选方案。</div>
+        <div id="workflowResult" hidden>
+          <div class="metrics">
+            <div><small>参考金额变动</small><b id="impactSpend">—</b></div>
+            <div><small>新增单元</small><b id="impactAdd">—</b></div>
+            <div><small>减少单元</small><b id="impactRemove">—</b></div>
+          </div>
+          <div class="trace" id="diffProvenance"></div>
+          <h4>100 / 200 / 500 万同源重算</h4>
+          <div id="variantSummary" class="variant-line"></div>
+          <h4>变化最多的媒体项目（最多 12 项）</h4>
+          <div class="table-wrap"><table><thead><tr><th>虚构媒体</th><th>原数量</th><th>新数量</th><th>增减</th></tr></thead><tbody id="diffRows"></tbody></table></div>
+          <div class="flow-hint" id="diffCoverage"></div>
+        </div>
+      </article>
+      <article class="panel">
+        <div class="panel-head"><span class="serial pale">04</span><h3>证据审查与部门交接</h3><span class="tag">只读 · 人工审批</span></div>
+        <div id="handoffEmpty" class="empty-state small-empty">运行变更分析后，会按依赖顺序分配审核责任，不直接通知客户或锁位。</div>
+        <div id="handoffResult" hidden>
+          <div class="flow-hint" id="qualityStatus"></div>
+          <div id="qualityChecks" class="quality-grid"></div>
+          <h4>跨部门任务依赖链</h4>
+          <div id="handoffSteps" class="handoff-steps"></div>
+          <h4>Agent 自检发现的 Skill 改进机会</h4>
+          <div id="skillPreview" class="skill-note"></div>
+          <h4>客户通知草稿（未发送）</h4>
+          <div class="trace" id="noticeDraft"></div>
+          <button type="button" class="copy-action" id="copyHandoff">复制人工复核摘要</button>
+        </div>
+      </article>
+    </div>
+  </section>
   <section class="content" id="architecture">
-    <div class="section-heading"><div class="eyebrow">STEP 02 · WHAT MAKES IT AN ENTERPRISE AGENT</div><h2>不止生成一段 AI 文案</h2><p>真实产品在授权企业环境工作，这个游客入口只暴露虚构示例和确定性计算。</p></div>
+    <div class="section-heading"><div class="eyebrow">STEP 03 · WHAT MAKES IT AN ENTERPRISE AGENT</div><h2>不止生成一段 AI 文案</h2><p>真实产品在授权企业环境工作，这个游客入口只暴露虚构示例和确定性计算。</p></div>
     <div class="feature-grid">
       <article><span>01 / 数据</span><h3>库存与证据分离</h3><p>红豆公交/地铁只读接口需企业正式授权；可视化暂无 API，仅用批准的导出。每个数据集有来源指纹。</p></article>
       <article><span>02 / 决策</span><h3>约束优化与证据审查</h3><p>100／200／500 万单独重算，记录预算约束、候选组合、九项提案证据门禁和人工待办。</p></article>

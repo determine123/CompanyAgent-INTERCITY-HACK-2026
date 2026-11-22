@@ -56,8 +56,8 @@ def _render_preview(budget_wan:int,medium:str)->dict:
         'remaining_wan':round(float(plan['remaining_wan']),2),
         'item_count':int(plan['item_count']),
         'unit_count':int(plan['unit_count']),
-        'selected':selected[:30],
-        'selection_truncated':len(selected)>30,
+        'selected':selected,
+        'selection_truncated':False,
         'evidence':{
             'budget_checked':float(plan['spent_wan'])<=budget_wan,
             'coverage_confirmed':False,
